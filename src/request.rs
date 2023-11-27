@@ -127,7 +127,7 @@ use crate::properties::ChannelProperty;
 // [ ] serveridgetbyport
 // [ ] serverinfo
 // [ ] serverlist
-// [ ] servernotifyregister
+// [X] servernotifyregister
 // [ ] servernotifyunregister
 // [ ] serverprocessstop
 // [ ] serverrequestconnectioninfo
