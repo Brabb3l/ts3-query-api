@@ -56,3 +56,170 @@ pub fn unescape(src: &str, dst: &mut String) -> Result<(), QueryError> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_escape_none() {
+        let mut dst = String::new();
+
+        escape("test", &mut dst);
+        assert_eq!(dst, "test");
+    }
+
+    #[test]
+    fn test_escape() {
+        let mut dst = String::new();
+
+        escape("test\\test", &mut dst);
+        assert_eq!(dst, "test\\\\test");
+
+        let mut dst = String::new();
+
+        escape("test/test", &mut dst);
+        assert_eq!(dst, "test\\/test");
+
+        let mut dst = String::new();
+
+        escape("test test", &mut dst);
+        assert_eq!(dst, "test\\stest");
+
+        let mut dst = String::new();
+
+        escape("test|test", &mut dst);
+        assert_eq!(dst, "test\\ptest");
+
+        let mut dst = String::new();
+
+        escape("test\x07test", &mut dst);
+        assert_eq!(dst, "test\\atest");
+
+        let mut dst = String::new();
+
+        escape("test\x08test", &mut dst);
+        assert_eq!(dst, "test\\btest");
+
+        let mut dst = String::new();
+
+        escape("test\x0Ctest", &mut dst);
+        assert_eq!(dst, "test\\ftest");
+
+        let mut dst = String::new();
+
+        escape("test\ntest", &mut dst);
+        assert_eq!(dst, "test\\ntest");
+
+        let mut dst = String::new();
+
+        escape("test\rtest", &mut dst);
+        assert_eq!(dst, "test\\rtest");
+
+        let mut dst = String::new();
+
+        escape("test\ttest", &mut dst);
+        assert_eq!(dst, "test\\ttest");
+
+        let mut dst = String::new();
+
+        escape("test\x0Btest", &mut dst);
+        assert_eq!(dst, "test\\vtest");
+    }
+
+    #[test]
+    fn test_escape_mixed() {
+        let mut dst = String::new();
+
+        escape("test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest", &mut dst);
+        assert_eq!(dst, "test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest");
+    }
+
+    #[test]
+    fn test_escape_error() {
+        let mut dst = String::new();
+
+        assert!(matches!(unescape("test\\", &mut dst), Err(QueryError::MalformedEscapeSequence { .. })));
+    }
+
+    #[test]
+    fn test_unescape_none() {
+        let mut dst = String::new();
+
+        unescape("test", &mut dst).unwrap();
+        assert_eq!(dst, "test");
+    }
+
+    #[test]
+    fn test_unescape() {
+        let mut dst = String::new();
+
+        unescape("test\\\\test", &mut dst).unwrap();
+        assert_eq!(dst, "test\\test");
+
+        let mut dst = String::new();
+
+        unescape("test\\/test", &mut dst).unwrap();
+        assert_eq!(dst, "test/test");
+
+        let mut dst = String::new();
+
+        unescape("test\\stest", &mut dst).unwrap();
+        assert_eq!(dst, "test test");
+
+        let mut dst = String::new();
+
+        unescape("test\\ptest", &mut dst).unwrap();
+        assert_eq!(dst, "test|test");
+
+        let mut dst = String::new();
+
+        unescape("test\\atest", &mut dst).unwrap();
+        assert_eq!(dst, "test\x07test");
+
+        let mut dst = String::new();
+
+        unescape("test\\btest", &mut dst).unwrap();
+        assert_eq!(dst, "test\x08test");
+
+        let mut dst = String::new();
+
+        unescape("test\\ftest", &mut dst).unwrap();
+        assert_eq!(dst, "test\x0Ctest");
+
+        let mut dst = String::new();
+
+        unescape("test\\ntest", &mut dst).unwrap();
+        assert_eq!(dst, "test\ntest");
+
+        let mut dst = String::new();
+
+        unescape("test\\rtest", &mut dst).unwrap();
+        assert_eq!(dst, "test\rtest");
+
+        let mut dst = String::new();
+
+        unescape("test\\ttest", &mut dst).unwrap();
+        assert_eq!(dst, "test\ttest");
+
+        let mut dst = String::new();
+
+        unescape("test\\vtest", &mut dst).unwrap();
+        assert_eq!(dst, "test\x0Btest");
+    }
+
+    #[test]
+    fn test_unescape_mixed() {
+        let mut dst = String::new();
+
+        unescape("test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest", &mut dst).unwrap();
+        assert_eq!(dst, "test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest");
+    }
+
+    #[test]
+    fn test_unescape_error() {
+        let mut dst = String::new();
+
+        assert!(matches!(unescape("test\\", &mut dst), Err(QueryError::MalformedEscapeSequence { .. })));
+    }
+}

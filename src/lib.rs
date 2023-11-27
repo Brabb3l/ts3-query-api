@@ -1,3 +1,24 @@
+/// # TeamSpeak 3 Query Library
+///
+/// ## Example
+/// ```rust
+/// use ts3_query_api::QueryClient;
+/// use ts3_query_api::error::QueryError;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), QueryError> {
+///     let client = QueryClient::connect(("localhost", 10011)).await?;
+///
+///     // Login and select virtual server
+///     client.login("username", "password").await?;
+///     client.use_sid(1).await?;
+///
+///     // ...
+///
+///     Ok(())
+/// }
+///
+
 mod client;
 
 pub mod request;
@@ -21,6 +42,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_connection() {
         init();
 

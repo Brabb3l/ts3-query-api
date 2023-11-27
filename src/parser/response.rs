@@ -175,3 +175,193 @@ impl Drop for CommandResponse {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_decode_none() {
+        let response = CommandResponse::decode("test", true).unwrap();
+
+        assert_eq!(response.name, Some("test".to_string()));
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_str() {
+        let mut response = CommandResponse::decode("test some_string=hello", true).unwrap();
+
+        assert_eq!(response.name, Some("test".to_string()));
+
+        match response.get("some_string") {
+            Ok(val) => assert_eq!(val, "hello"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_i32() {
+        let mut response = CommandResponse::decode("test some_integer=69", true).unwrap();
+
+        assert_eq!(response.name, Some("test".to_string()));
+
+        match response.get_i32("some_integer") {
+            Ok(val) => assert_eq!(val, 69),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    #[allow(clippy::bool_assert_comparison)]
+    fn test_decode_bool() {
+        let mut response = CommandResponse::decode("test some_bool=1", true).unwrap();
+
+        assert_eq!(response.name, Some("test".to_string()));
+
+        match response.get_bool("some_bool") {
+            Ok(val) => assert_eq!(val, true),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_list() {
+        let mut response = CommandResponse::decode("test some_list=hello,world", true).unwrap();
+
+        assert_eq!(response.name, Some("test".to_string()));
+
+        match response.get_list("some_list") {
+            Ok(val) => assert_eq!(val, vec!["hello", "world"]),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_i32_list() {
+        let mut response = CommandResponse::decode("test some_list=69,420", true).unwrap();
+
+        assert_eq!(response.name, Some("test".to_string()));
+
+        match response.get_i32_list("some_list") {
+            Ok(val) => assert_eq!(val, vec![69, 420]),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_str_without_name() {
+        let mut response = CommandResponse::decode("some_string=hello", false).unwrap();
+
+        assert_eq!(response.name, None);
+
+        match response.get("some_string") {
+            Ok(val) => assert_eq!(val, "hello"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_multi_but_only_one() {
+        let mut responses = CommandResponse::decode_multi("test1").unwrap();
+
+        assert_eq!(responses.len(), 1);
+
+        let mut response = responses.remove(0);
+
+        assert_eq!(response.name, None);
+        assert_eq!(response.args.len(), 1);
+
+        match response.get("test1") {
+            Ok(val) => assert_eq!(val, ""),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_multi() {
+        let mut responses = CommandResponse::decode_multi("test1=hi|test2=mom").unwrap();
+
+        assert_eq!(responses.len(), 2);
+
+        let mut response = responses.remove(0);
+
+        assert_eq!(response.name, None);
+        assert_eq!(response.args.len(), 1);
+
+        match response.get("test1") {
+            Ok(val) => assert_eq!(val, "hi"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+
+        let mut response = responses.remove(0);
+
+        assert_eq!(response.name, None);
+        assert_eq!(response.args.len(), 1);
+
+        match response.get("test2") {
+            Ok(val) => assert_eq!(val, "mom"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_multi_multiple_args() {
+        let mut responses = CommandResponse::decode_multi("test1=hi test2=69|test1=mom test2=420").unwrap();
+
+        assert_eq!(responses.len(), 2);
+
+        let mut response = responses.remove(0);
+
+        assert_eq!(response.name, None);
+        assert_eq!(response.args.len(), 2);
+
+        match response.get("test1") {
+            Ok(val) => assert_eq!(val, "hi"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        match response.get("test2") {
+            Ok(val) => assert_eq!(val, "69"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+
+        let mut response = responses.remove(0);
+
+        assert_eq!(response.name, None);
+        assert_eq!(response.args.len(), 2);
+
+        match response.get("test1") {
+            Ok(val) => assert_eq!(val, "mom"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        match response.get("test2") {
+            Ok(val) => assert_eq!(val, "420"),
+            Err(e) => panic!("{:?}", e),
+        }
+
+        assert_eq!(response.args.len(), 0);
+    }
+
+}

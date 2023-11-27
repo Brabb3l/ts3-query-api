@@ -162,8 +162,8 @@ impl QueryClient {
         password: &str,
     ) -> Result<(), QueryError> {
         let command = Command::new("login")
-            .key_val_str("client_login_name", username)
-            .key_val_str("client_login_password", password);
+            .arg("client_login_name", username)?
+            .arg("client_login_password", password)?;
 
         self.send_command(command).await?;
 
@@ -194,7 +194,7 @@ impl QueryClient {
 
     pub async fn use_sid(&self, sid: i32) -> Result<(), QueryError> {
         let command = Command::new("use")
-            .key_val_i32("sid", sid)?;
+            .arg("sid", sid)?;
 
         self.send_command(command).await?;
 
@@ -203,7 +203,7 @@ impl QueryClient {
 
     pub async fn use_port(&self, port: u16) -> Result<(), QueryError> {
         let command = Command::new("use")
-            .key_val_i32("port", port.into())?;
+            .arg("port", port)?;
 
         self.send_command(command).await?;
 
@@ -274,7 +274,7 @@ impl QueryClient {
 
     pub async fn channel_info(&self, id: i32) -> Result<ChannelInfo, QueryError> {
         let command = Command::new("channelinfo")
-            .key_val_i32("cid", id)?;
+            .arg("cid", id)?;
 
         let mut response = self.send_command_decode(command).await?;
 
@@ -357,7 +357,7 @@ impl QueryClient {
 
     pub async fn client_info(&self, id: i32) -> Result<ClientInfo, QueryError> {
         let command = Command::new("clientinfo")
-            .key_val_i32("clid", id)?;
+            .arg("clid", id)?;
 
         let mut response = self.send_command_decode(command).await?;
 
@@ -366,7 +366,7 @@ impl QueryClient {
 
     pub async fn client_info_multiple(&self, ids: &[i32]) -> Result<Vec<ClientInfo>, QueryError> {
         let command = Command::new("clientinfo")
-            .key_val_i32_list("clid", ids)?;
+            .arg_list("clid", ids)?;
 
         let mut clients = Vec::new();
 
@@ -383,12 +383,12 @@ impl QueryClient {
         properties: Vec<ChannelProperty<'_>>
     ) -> Result<(), QueryError> {
         let mut command = Command::new("channelcreate")
-            .key_val_str("channel_name", name);
+            .arg("channel_name", name)?;
 
         for property in properties {
             let (key, value) = property.contents();
 
-            command = command.key_val_property(key, value)?;
+            command = command.arg(key, value)?;
         }
 
         self.send_command(command).await?;
@@ -405,11 +405,11 @@ impl QueryClient {
     ) -> Result<(), QueryError> {
         let mut command = Command::new("clientmove")
             .flag("continueonerror", continue_on_error)
-            .key_val_i32_list("clid", client_ids)?
-            .key_val_i32("cid", channel_id)?;
+            .arg_list("clid", client_ids)?
+            .arg("cid", channel_id)?;
 
         if let Some(password) = password {
-            command = command.key_val_str("cpw", password);
+            command = command.arg("cpw", password)?;
         }
 
         self.send_command(command).await?;
@@ -420,7 +420,7 @@ impl QueryClient {
     pub async fn channel_delete(&self, channel_id: i32, force: bool) -> Result<(), QueryError> {
         let command = Command::new("channeldelete")
             .flag("force", force)
-            .key_val_i32("cid", channel_id)?;
+            .arg("cid", channel_id)?;
 
         self.send_command(command).await?;
 
@@ -433,12 +433,12 @@ impl QueryClient {
         properties: Vec<ChannelProperty<'_>>,
     ) -> Result<(), QueryError> {
         let mut command = Command::new("channeledit")
-            .key_val_i32("cid", channel_id)?;
+            .arg("cid", channel_id)?;
 
         for property in properties {
             let (key, value) = property.contents();
 
-            command = command.key_val_property(key, value)?;
+            command = command.arg(key, value)?;
         }
 
         self.send_command(command).await?;
@@ -453,9 +453,9 @@ impl QueryClient {
         perms_value: i32,
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
-            .key_val_i32("cid", channel_id)?
-            .key_val_i32("permid", perms_id)?
-            .key_val_i32("permvalue", perms_value)?;
+            .arg("cid", channel_id)?
+            .arg("permid", perms_id)?
+            .arg("permvalue", perms_value)?;
 
         self.send_command(command).await?;
 
@@ -469,9 +469,9 @@ impl QueryClient {
         perms_value: i32,
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
-            .key_val_i32("cid", channel_id)?
-            .key_val_str("permsid", perms_id)
-            .key_val_i32("permvalue", perms_value)?;
+            .arg("cid", channel_id)?
+            .arg("permsid", perms_id)?
+            .arg("permvalue", perms_value)?;
 
         self.send_command(command).await?;
 

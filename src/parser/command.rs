@@ -1,10 +1,10 @@
 use std::fmt::{Arguments, Display, Write};
 use crate::error::QueryError;
 use crate::parser::util::escape;
-use crate::properties::PropertyType;
 
 pub struct Command {
     pub buf: String,
+    pub prepend_space: bool,
 }
 
 #[allow(dead_code)]
@@ -12,112 +12,97 @@ impl Command {
     pub fn new(name: &str) -> Self {
         Self {
             buf: name.into(),
+            prepend_space: true,
         }
-    }
-
-    pub fn action(mut self, key: &str) -> Self {
-        self.buf.push(' ');
-        self.buf.push('-');
-        self.buf.push_str(key);
-        self
     }
 
     pub fn flag(mut self, key: &str, state: bool) -> Self {
         if state {
-            self.buf.push(' ');
+            if self.prepend_space {
+                self.buf.push(' ');
+            }
+
             self.buf.push('-');
             self.buf.push_str(key);
         }
+
         self
     }
 
-    pub fn key_val_str(mut self, key: &str, val: &str) -> Self {
-        self.buf.push(' ');
-        self.buf.push_str(key);
-        self.buf.push('=');
-        escape(val, &mut self.buf);
-        self
+    pub fn arg<T: Encode>(self, key: &str, val: T) -> Result<Self, QueryError> {
+        self.arg_ref(key, &val)
     }
 
-    pub fn key_val_i32(mut self, key: &str, val: i32) -> Result<Self, QueryError> {
-        self.buf.push(' ');
+    pub fn arg_ref<T: Encode>(mut self, key: &str, val: &T) -> Result<Self, QueryError> {
+        if self.prepend_space {
+            self.buf.push(' ');
+        }
+
         self.buf.push_str(key);
         self.buf.push('=');
-        write!(self.buf, "{}", val).map_err(QueryError::FormatError)?;
+        val.encode(&mut self.buf).map_err(QueryError::FormatError)?;
+
         Ok(self)
     }
 
-    pub fn key_val_bool(mut self, key: &str, val: bool) -> Self {
-        self.buf.push(' ');
-        self.buf.push_str(key);
-        self.buf.push('=');
-        if val {
-            self.buf.push('1');
-        } else {
-            self.buf.push('0');
-        }
-        self
-    }
-
-    pub fn key_val_property(self, key: &str, val: PropertyType) -> Result<Self, QueryError> {
-        Ok(match val {
-            PropertyType::Str(val) => self.key_val_str(key, val),
-            PropertyType::Int(val) => self.key_val_i32(key, val)?,
-            PropertyType::Bool(val) => self.key_val_bool(key, val),
-        })
-    }
-
-    pub fn key_val_i32_list(self, key: &str, val: &[i32]) -> Result<Self, QueryError> {
-        self.key_val_list(key, val, |buf, e| {
-            write!(buf, "{}", e)
-        }).map_err(QueryError::FormatError)
-    }
-
-    pub fn key_val_str_list(self, key: &str, val: &[&str]) -> Self {
-        self.key_val_list(key, val, |buf, e| {
-            escape(e, buf);
-            Ok(())
-        }).unwrap()
-    }
-
-    pub fn raw(mut self, val: &str) -> Self {
-        self.buf.push(' ');
-        self.buf.push_str(val);
-        self
-    }
-
-    pub fn into(self) -> String {
-        self.buf
-    }
-
-    #[inline(always)]
-    fn key_val_list<F, T>(
-        mut self,
-        key: &str,
-        val: &[T],
-        write_value: F
-    ) -> Result<Self, std::fmt::Error>
-        where F: Fn(&mut String, &T) -> std::fmt::Result
-    {
+    pub fn arg_list<T: Encode>(mut self, key: &str, val: &[T]) -> Result<Self, QueryError> {
         let Some(first) = val.first() else {
             return Ok(self);
         };
 
-        self.buf.push(' ');
-        self.buf.push_str(key);
-        self.buf.push('=');
-        write_value(&mut self.buf, first)?;
+        self = self.arg_ref(key, first)?;
 
         for val in val.iter().skip(1) {
-            self.buf.push('|');
-            self.buf.push_str(key);
-            self.buf.push('=');
-            write_value(&mut self.buf, val)?;
+            self = self.list_sep().arg_ref(key, val)?;
         }
+
+        self.prepend_space = true;
 
         Ok(self)
     }
 
+    pub fn arg_multi_list<T: EncodeList>(mut self, val: &[T]) -> Result<Self, QueryError> {
+        if self.prepend_space {
+            self.buf.push(' ');
+        }
+
+        let Some(first) = val.first() else {
+            return Ok(self);
+        };
+
+        first.encode_list(&mut CommandListBuilder::new(&mut self.buf))?;
+
+        for val in val.iter().skip(1) {
+            self = self.list_sep();
+
+            val.encode_list(&mut CommandListBuilder::new(&mut self.buf))?;
+        }
+
+        self.prepend_space = true;
+
+        Ok(self)
+    }
+
+    pub fn list_sep(mut self) -> Self {
+        self.prepend_space = false;
+        self.buf.push('|');
+        self
+    }
+
+    pub fn raw(mut self, val: &str) -> Self {
+        if self.prepend_space {
+            self.buf.push(' ');
+        }
+
+        self.buf.push_str(val);
+        self
+    }
+}
+
+impl From<Command> for String {
+    fn from(command: Command) -> Self {
+        command.buf
+    }
 }
 
 impl Display for Command {
@@ -136,5 +121,177 @@ impl Write for Command {
     fn write_fmt(&mut self, args: Arguments<'_>) -> std::fmt::Result {
         self.buf.write_fmt(args)?;
         Ok(())
+    }
+}
+
+pub trait Encode {
+    fn encode(&self, buf: &mut String) -> std::fmt::Result;
+}
+
+impl Encode for &str {
+    fn encode(&self, buf: &mut String) -> std::fmt::Result {
+        escape(self, buf);
+        Ok(())
+    }
+}
+
+impl Encode for String {
+    fn encode(&self, buf: &mut String) -> std::fmt::Result {
+        escape(self, buf);
+        Ok(())
+    }
+}
+
+impl Encode for bool {
+    fn encode(&self, buf: &mut String) -> std::fmt::Result {
+        if *self {
+            buf.push('1');
+        } else {
+            buf.push('0');
+        }
+        Ok(())
+    }
+}
+
+macro_rules! impl_simple_encode {
+    ($($t:ty),*) => {
+        $(
+            impl Encode for $t {
+                fn encode(&self, buf: &mut String) -> std::fmt::Result {
+                    write!(buf, "{}", self)
+                }
+            }
+        )*
+    };
+}
+
+impl_simple_encode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+
+pub struct CommandListBuilder<'a> {
+    buf: &'a mut String,
+    prepend_space: bool,
+}
+
+impl<'a> CommandListBuilder<'a> {
+    pub fn new(buf: &'a mut String) -> Self {
+        Self {
+            buf,
+            prepend_space: false,
+        }
+    }
+
+    pub fn add<T: Encode>(&mut self, key: &str, val: T) -> Result<(), QueryError> {
+        self.add_ref(key, &val)
+    }
+
+    pub fn add_ref<T: Encode>(&mut self, key: &str, val: &T) -> Result<(), QueryError> {
+        if self.prepend_space {
+            self.buf.push(' ');
+        } else {
+            self.prepend_space = true;
+        }
+
+        self.buf.push_str(key);
+        self.buf.push('=');
+        val.encode(self.buf).map_err(QueryError::FormatError)?;
+
+        Ok(())
+    }
+}
+
+pub trait EncodeList {
+     fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), QueryError>;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    struct Test {
+        key: &'static str,
+        key2: &'static str,
+    }
+
+    impl EncodeList for Test {
+        fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), QueryError> {
+            builder.add("key", self.key)?;
+            builder.add("key2", self.key2)
+        }
+    }
+
+    #[test]
+    fn test_arg() {
+        let command = Command::new("test")
+            .arg("key", "value").unwrap()
+            .arg("key2", 123).unwrap()
+            .arg("key3", true).unwrap()
+            .arg("key4", false).unwrap();
+
+        let command: String = command.into();
+
+        assert_eq!(
+            command,
+            "test key=value key2=123 key3=1 key4=0"
+        )
+    }
+
+    #[test]
+    fn test_arg_list_single() {
+        let command = Command::new("test")
+            .arg_list("key", &["value1"]).unwrap()
+            .arg_list("key2", &[123]).unwrap();
+
+        let command: String = command.into();
+
+        assert_eq!(
+            command,
+            "test key=value1 key2=123"
+        )
+    }
+
+    #[test]
+    fn test_arg_list() {
+        let command = Command::new("test")
+            .arg_list("key", &["value1", "value2", "value3"]).unwrap()
+            .arg_list("key2", &[123, 456, 789]).unwrap();
+
+        let command: String = command.into();
+
+        assert_eq!(
+            command,
+            "test key=value1|key=value2|key=value3 key2=123|key2=456|key2=789"
+        )
+    }
+
+    #[test]
+    fn test_arg_multi_list() {
+        let command = Command::new("test")
+            .arg_multi_list(&[
+                Test { key: "value1", key2: "value2" },
+                Test { key: "value3", key2: "value4" },
+                Test { key: "value5", key2: "value6" },
+            ]).unwrap();
+
+        let command: String = command.into();
+
+        assert_eq!(
+            command,
+            "test key=value1 key2=value2|key=value3 key2=value4|key=value5 key2=value6"
+        )
+    }
+
+    #[test]
+    fn test_arg_multi_list_single() {
+        let command = Command::new("test")
+            .arg_multi_list(&[
+                Test { key: "value1", key2: "value2" },
+            ]).unwrap();
+
+        let command: String = command.into();
+
+        assert_eq!(
+            command,
+            "test key=value1 key2=value2"
+        )
     }
 }

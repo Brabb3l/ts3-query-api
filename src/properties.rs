@@ -1,9 +1,20 @@
 use crate::macros::properties;
+use crate::parser::Encode;
 
 pub enum PropertyType<'a> {
     Str(&'a str),
     Int(i32),
     Bool(bool),
+}
+
+impl Encode for PropertyType<'_> {
+    fn encode(&self, buf: &mut String) -> std::fmt::Result {
+        match self {
+            PropertyType::Str(val) => val.encode(buf),
+            PropertyType::Int(val) => val.encode(buf),
+            PropertyType::Bool(val) => val.encode(buf),
+        }
+    }
 }
 
 properties! {
