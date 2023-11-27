@@ -24,7 +24,7 @@ macro_rules! property_type {
 
 macro_rules! properties {
     ($type:ident {
-        $($name:ident: $ty:ident = $value:expr),*
+        $($name:ident: $ty:ident = $value:expr),* $(,)?
     }) => {
         #[allow(dead_code)]
         pub enum $type<'a> {
@@ -48,47 +48,29 @@ macro_rules! properties {
     }
 }
 
-macro_rules! ts_response_field {
-    ($response:ident, $field:ident, String) => {
-        let $field = $response.get(stringify!($field))?;
+macro_rules! ts_response_str {
+    ($field:ident) => {
+        stringify!($field)
     };
-    ($response:ident, $field:ident, i32) => {
-        let $field = $response.get_i32(stringify!($field))?;
-    };
-    ($response:ident, $field:ident, bool) => {
-        let $field = $response.get_bool(stringify!($field))?;
-    };
-    ($response:ident, $field:ident, Vec<String>) => {
-        let $field = $response.get_list(stringify!($field))?;
-    };
-    ($response:ident, $field:ident, Vec<i32>) => {
-        let $field = $response.get_i32_list(stringify!($field))?;
-    };
-    ($response:ident, $field:ident, $ty:ty) => {
-        let $field = $response.get(stringify!($field))?;
-        let $field = <$ty>::from_str(&$field)?;
-    };
+    ($field:ident, $str:expr) => {
+        $str
+    }
 }
 
 macro_rules! ts_response {
     ($type:ident {
-        $($field:ident: $field_type:ident $(<$generics:ident>)?),*
+        $($field:ident$(($str:expr))?: $field_type:ident $(<$generics:ident>)?),* $(,)?
     }) => {
-        #[allow(dead_code, non_snake_case)]
+        #[allow(dead_code)]
         #[derive(Debug)]
         pub struct $type {
-            pub $($field: $field_type $(<$generics>)?),*
+            $(pub $field: $field_type $(<$generics>)?),*
         }
 
-        #[allow(non_snake_case)]
         impl $type {
             pub fn from(response: &mut $crate::parser::CommandResponse) -> Result<Self, $crate::error::QueryError> {
-                $(
-                    $crate::macros::ts_response_field!(response, $field, $field_type $(<$generics>)?);
-                )*
-
                 Ok(Self {
-                    $($field),*
+                    $($field: response.get::<$field_type$(<$generics>)?>($crate::macros::ts_response_str!($field $(, $str)?))?),*
                 })
             }
         }
@@ -99,4 +81,4 @@ pub(crate) use property;
 pub(crate) use property_type;
 pub(crate) use properties;
 pub(crate) use ts_response;
-pub(crate) use ts_response_field;
+pub(crate) use ts_response_str;

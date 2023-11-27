@@ -12,83 +12,17 @@ pub struct CommandResponse {
 
 // getters
 impl CommandResponse {
-    pub fn get(&mut self, key: &str) -> Result<String, QueryError> {
-        self.args.remove(key).ok_or_else(|| QueryError::MissingArg {
+    pub fn get<D: Decode>(&mut self, key: &str) -> Result<D, QueryError> {
+        let val = self.args.remove(key).ok_or_else(|| QueryError::MissingArg {
             key: key.to_string(),
-        })
-    }
+        })?;
 
-    pub fn get_i32(&mut self, key: &str) -> Result<i32, QueryError> {
-        let val = self.get(key)?;
-
-        val.parse::<i32>()
-            .map_err(|e| QueryError::ArgTypeError {
-                key: key.to_string(),
-                value: val,
-                expected_type: "integer".to_string(),
-                error: e.to_string(),
-            })
-    }
-
-    pub fn get_bool(&mut self, key: &str) -> Result<bool, QueryError> {
-        Ok(self.get_i32(key)? != 0)
-    }
-
-    #[allow(dead_code)]
-    pub fn get_opt(&mut self, key: &str) -> Option<String> {
-        self.args.remove(key)
-    }
-
-    #[allow(dead_code)]
-    pub fn get_opt_i32(&mut self, key: &str) -> Result<Option<i32>, QueryError> {
-        if let Some(val) = self.get_opt(key) {
-            Ok(Some(Self::parse_to_i32(key, &val)?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn get_opt_bool(&mut self, key: &str) -> Result<Option<bool>, QueryError> {
-        self.get_opt_i32(key)
-            .map(|val| val.map(|val| val != 0))
-    }
-
-    pub fn get_list(&mut self, key: &str) -> Result<Vec<String>, QueryError> {
-        let mut list = Vec::new();
-        let val = self.get(key)?;
-
-        for val in val.split(',') {
-            list.push(val.to_string());
-        }
-
-        Ok(list)
-    }
-
-    pub fn get_i32_list(&mut self, key: &str) -> Result<Vec<i32>, QueryError> {
-        let mut list = Vec::new();
-        let val = self.get(key)?;
-
-        for val in val.split(',') {
-            list.push(Self::parse_to_i32(key, val)?);
-        }
-
-        Ok(list)
+        D::decode(key, val)
     }
 
     // Only for debugging purposes to prevent Drop from logging warnings
     pub(crate) fn clear(&mut self) {
         self.args.clear();
-    }
-
-    fn parse_to_i32(key: &str, value: &str) -> Result<i32, QueryError> {
-        value.parse::<i32>()
-            .map_err(|e| QueryError::ArgTypeError {
-                key: key.to_string(),
-                value: value.to_string(),
-                expected_type: "integer".to_string(),
-                error: e.to_string(),
-            })
     }
 }
 
@@ -176,6 +110,63 @@ impl Drop for CommandResponse {
     }
 }
 
+pub trait Decode: Sized {
+    fn decode(key: &str, value: String) -> Result<Self, QueryError>;
+}
+
+impl Decode for String {
+    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+        Ok(value)
+    }
+}
+
+impl Decode for bool {
+    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+        match value.as_str() {
+            "1" => Ok(true),
+            "0" => Ok(false),
+            _ => Err(QueryError::ArgTypeError {
+                key: _key.to_string(),
+                value,
+                expected_type: "boolean".to_string(),
+                error: "Invalid boolean value".to_string(),
+            })
+        }
+    }
+}
+
+impl<T: Decode> Decode for Vec<T> {
+    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+        let mut list = Vec::new();
+
+        for val in value.split(',') {
+            list.push(T::decode(_key, val.to_string())?);
+        }
+
+        Ok(list)
+    }
+}
+
+macro_rules! impl_decode {
+    ($($type:ident),*) => {
+        $(
+            impl Decode for $type {
+                fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+                    value.parse::<$type>()
+                        .map_err(|e| QueryError::ArgTypeError {
+                            key: _key.to_string(),
+                            value,
+                            expected_type: stringify!($type).to_string(),
+                            error: e.to_string(),
+                        })
+                }
+            }
+        )*
+    };
+}
+
+impl_decode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -194,7 +185,7 @@ mod test {
 
         assert_eq!(response.name, Some("test".to_string()));
 
-        match response.get("some_string") {
+        match response.get::<String>("some_string") {
             Ok(val) => assert_eq!(val, "hello"),
             Err(e) => panic!("{:?}", e),
         }
@@ -208,7 +199,7 @@ mod test {
 
         assert_eq!(response.name, Some("test".to_string()));
 
-        match response.get_i32("some_integer") {
+        match response.get::<i32>("some_integer") {
             Ok(val) => assert_eq!(val, 69),
             Err(e) => panic!("{:?}", e),
         }
@@ -223,7 +214,7 @@ mod test {
 
         assert_eq!(response.name, Some("test".to_string()));
 
-        match response.get_bool("some_bool") {
+        match response.get::<bool>("some_bool") {
             Ok(val) => assert_eq!(val, true),
             Err(e) => panic!("{:?}", e),
         }
@@ -237,7 +228,7 @@ mod test {
 
         assert_eq!(response.name, Some("test".to_string()));
 
-        match response.get_list("some_list") {
+        match response.get::<Vec<String>>("some_list") {
             Ok(val) => assert_eq!(val, vec!["hello", "world"]),
             Err(e) => panic!("{:?}", e),
         }
@@ -251,7 +242,7 @@ mod test {
 
         assert_eq!(response.name, Some("test".to_string()));
 
-        match response.get_i32_list("some_list") {
+        match response.get::<Vec<i32>>("some_list") {
             Ok(val) => assert_eq!(val, vec![69, 420]),
             Err(e) => panic!("{:?}", e),
         }
@@ -265,7 +256,7 @@ mod test {
 
         assert_eq!(response.name, None);
 
-        match response.get("some_string") {
+        match response.get::<String>("some_string") {
             Ok(val) => assert_eq!(val, "hello"),
             Err(e) => panic!("{:?}", e),
         }
@@ -284,7 +275,7 @@ mod test {
         assert_eq!(response.name, None);
         assert_eq!(response.args.len(), 1);
 
-        match response.get("test1") {
+        match response.get::<String>("test1") {
             Ok(val) => assert_eq!(val, ""),
             Err(e) => panic!("{:?}", e),
         }
@@ -303,7 +294,7 @@ mod test {
         assert_eq!(response.name, None);
         assert_eq!(response.args.len(), 1);
 
-        match response.get("test1") {
+        match response.get::<String>("test1") {
             Ok(val) => assert_eq!(val, "hi"),
             Err(e) => panic!("{:?}", e),
         }
@@ -315,7 +306,7 @@ mod test {
         assert_eq!(response.name, None);
         assert_eq!(response.args.len(), 1);
 
-        match response.get("test2") {
+        match response.get::<String>("test2") {
             Ok(val) => assert_eq!(val, "mom"),
             Err(e) => panic!("{:?}", e),
         }
@@ -334,12 +325,12 @@ mod test {
         assert_eq!(response.name, None);
         assert_eq!(response.args.len(), 2);
 
-        match response.get("test1") {
+        match response.get::<String>("test1") {
             Ok(val) => assert_eq!(val, "hi"),
             Err(e) => panic!("{:?}", e),
         }
 
-        match response.get("test2") {
+        match response.get::<String>("test2") {
             Ok(val) => assert_eq!(val, "69"),
             Err(e) => panic!("{:?}", e),
         }
@@ -351,12 +342,12 @@ mod test {
         assert_eq!(response.name, None);
         assert_eq!(response.args.len(), 2);
 
-        match response.get("test1") {
+        match response.get::<String>("test1") {
             Ok(val) => assert_eq!(val, "mom"),
             Err(e) => panic!("{:?}", e),
         }
 
-        match response.get("test2") {
+        match response.get::<String>("test2") {
             Ok(val) => assert_eq!(val, "420"),
             Err(e) => panic!("{:?}", e),
         }

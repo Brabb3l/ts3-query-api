@@ -1,5 +1,6 @@
 use crate::client::QueryClient;
 use crate::error::QueryError;
+use crate::event::EventType;
 use crate::responses::{ChannelInfo, ChannelListBannerEntry, ChannelListFlagsEntry, ChannelListDynamicEntry, ChannelListIconEntry, ChannelListEntry, ChannelListLimitsEntry, ChannelListSecondsEmptyEntry, ChannelListTopicEntry, ChannelListVoiceEntry, ClientListAwayEntry, ClientListDynamicEntry, ClientListGroupsEntry, ClientListEntry, ClientListTimesEntry, ClientListUidEntry, ClientListVoiceEntry, Version, ClientListInfoEntry, ClientListCountryEntry, ClientListIpEntry, ClientListIconEntry, ClientListBadgesEntry, ClientInfo, WhoAmI};
 use crate::parser::Command;
 use crate::properties::ChannelProperty;
@@ -472,6 +473,20 @@ impl QueryClient {
             .arg("cid", channel_id)?
             .arg("permsid", perms_id)?
             .arg("permvalue", perms_value)?;
+
+        self.send_command(command).await?;
+
+        Ok(())
+    }
+
+    pub async fn server_notify_register(
+        &self,
+        event: EventType,
+        channel_id: Option<i32>,
+    ) -> Result<(), QueryError> {
+        let command = Command::new("servernotifyregister")
+            .arg("event", event)?
+            .arg_opt("id", channel_id)?;
 
         self.send_command(command).await?;
 

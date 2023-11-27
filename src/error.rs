@@ -22,6 +22,7 @@ pub enum QueryError {
     MalformedEscapeSequence { src: String },
     NotTS3Server,
     UnknownKey { response: String, key: String },
+    UnknownEvent { response: String, event: String },
 
     QueryError { id: i32, message: String, response: CommandResponse }
 }

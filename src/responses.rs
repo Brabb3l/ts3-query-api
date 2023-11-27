@@ -1,6 +1,6 @@
-use std::str::FromStr;
 use crate::error::QueryError;
 use crate::macros::ts_response;
+use crate::parser::Decode;
 
 // version
 
@@ -239,30 +239,28 @@ pub struct Badges {
     pub badges: Vec<String>
 }
 
-impl FromStr for Badges {
-    type Err = QueryError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl Decode for Badges {
+    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
         let mut overwolf = false;
         let mut badges = Vec::new();
 
-        if s.is_empty() {
+        if value.is_empty() {
             return Ok(Self {
                 overwolf,
                 badges
             });
         }
 
-        for part in s.split(':') {
+        for part in value.split(':') {
             let mut split = part.split('=');
 
             let key = split.next().ok_or(QueryError::MissingKey {
-                response: s.to_owned(),
+                response: value.to_owned(),
                 key: part.to_owned()
             })?;
 
             let value = split.next().ok_or(QueryError::MissingKey {
-                response: s.to_owned(),
+                response: value.to_owned(),
                 key: part.to_owned()
             })?;
 
@@ -275,7 +273,7 @@ impl FromStr for Badges {
                 },
                 _ => {
                     return Err(QueryError::UnknownKey {
-                        response: s.to_owned(),
+                        response: value.to_owned(),
                         key: key.to_owned()
                     });
                 }
@@ -357,7 +355,7 @@ ts_response! {
         client_integrations: String,
         client_myteamspeak_avatar: String,
         client_signed_badges: Vec<String>,
-        client_base64HashClientUID: String,
+        client_base64_hash_client_uid("client_base64HashClientUID"): String,
         connection_filetransfer_bandwidth_sent: i32,
         connection_filetransfer_bandwidth_received: i32,
         connection_packets_sent_total: i32,

@@ -29,6 +29,14 @@ impl Command {
         self
     }
 
+    pub fn arg_opt<T: Encode>(self, key: &str, val: Option<T>) -> Result<Self, QueryError> {
+        if let Some(val) = val {
+            self.arg(key, val)
+        } else {
+            Ok(self)
+        }
+    }
+
     pub fn arg<T: Encode>(self, key: &str, val: T) -> Result<Self, QueryError> {
         self.arg_ref(key, &val)
     }
