@@ -9,12 +9,10 @@ use crate::error::QueryError;
 use crate::event::{DefaultEventHandler, Event, EventHandler};
 use crate::parser::{Command, CommandResponse};
 
+#[derive(Clone)]
 pub struct QueryClient {
     command_tx: flume::Sender<TSCommand>,
     event_handler: Arc<RwLock<WrappedEventHandler>>,
-    reader_loop_handle: tokio::task::JoinHandle<()>,
-    writer_loop_handle: tokio::task::JoinHandle<()>,
-    keep_alive_loop_handle: tokio::task::JoinHandle<()>,
 }
 
 impl QueryClient {
@@ -32,13 +30,16 @@ impl QueryClient {
 
         Self::read_welcome_message(&mut reader).await?;
 
-        Ok(Self {
-            reader_loop_handle: spawn(Self::reader_loop(reader, response_tx, event_handler.clone())),
-            writer_loop_handle: spawn(Self::writer_loop(writer, response_rx, command_rx)),
-            keep_alive_loop_handle: spawn(Self::keep_alive_loop(command_tx.clone())),
-            command_tx,
-            event_handler,
-        })
+        let client = Self {
+            command_tx: command_tx.clone(),
+            event_handler: event_handler.clone(),
+        };
+
+        spawn(Self::reader_loop(reader, response_tx, client.clone()));
+        spawn(Self::writer_loop(writer, response_rx, command_rx));
+        spawn(Self::keep_alive_loop(command_tx));
+
+        Ok(client)
     }
 
     pub async fn send_command(&self, command: Command) -> Result<String, QueryError> {
@@ -99,7 +100,7 @@ impl QueryClient {
     async fn reader_loop(
         mut reader: BufReader<OwnedReadHalf>,
         response_tx: flume::Sender<TSResponse>,
-        event_handler: Arc<RwLock<WrappedEventHandler>>
+        client: QueryClient
     ) {
         loop {
             let mut buf = Vec::new();
@@ -111,6 +112,11 @@ impl QueryClient {
                     return;
                 }
 
+                if tmp_buf.is_empty() {
+                    error!("Server closed connection");
+                    return;
+                }
+
                 tmp_buf.truncate(tmp_buf.len() - 2);
 
                 if tmp_buf.starts_with(b"error") {
@@ -118,10 +124,22 @@ impl QueryClient {
                 } else if tmp_buf.starts_with(b"notify") {
                     debug!("[S->C] {}", String::from_utf8_lossy(&tmp_buf));
 
-                    let event = match CommandResponse::decode(std::str::from_utf8(&tmp_buf).unwrap(), true) {
+                    let event_str = match std::str::from_utf8(&tmp_buf) {
+                        Ok(event_str) => event_str,
+                        Err(e) => {
+                            if client.event_handler.read().await.handler.handle_error(QueryError::MalformedUTF8(e)).await {
+                                return;
+                            }
+
+                            tmp_buf.clear();
+                            continue;
+                        }
+                    };
+
+                    let event = match CommandResponse::decode(event_str, true) {
                         Ok(event) => event,
                         Err(e) => {
-                            if event_handler.read().await.handler.handle_error(e).await {
+                            if client.event_handler.read().await.handler.handle_error(e).await {
                                 return;
                             }
 
@@ -133,7 +151,7 @@ impl QueryClient {
                     let event = match Event::from(event) {
                         Ok(event) => event,
                         Err(e) => {
-                            if event_handler.read().await.handler.handle_error(e).await {
+                            if client.event_handler.read().await.handler.handle_error(e).await {
                                 return;
                             }
 
@@ -142,9 +160,8 @@ impl QueryClient {
                         }
                     };
 
-                    event_handler.read().await.handler.handle_event(event).await;
+                    client.event_handler.read().await.handler.handle_event(client.clone(), event).await;
                     tmp_buf.clear();
-                    break;
                 } else {
                     buf.extend_from_slice(&tmp_buf);
                     tmp_buf.clear();
@@ -203,15 +220,20 @@ impl QueryClient {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
 
+            let (response_tx, response_rx) = flume::unbounded::<TSResponse>();
+
             if let Err(e) = command_tx.send(TSCommand {
                 data: "version".to_string(),
-                response_tx: flume::unbounded::<TSResponse>().0
+                response_tx
             }) {
                 error!("Failed to send keep alive: {}", e);
                 return;
             }
 
-            debug!("Sent keep alive");
+            if let Err(e) = response_rx.recv_async().await {
+                error!("Failed to receive keep alive response: {}", e);
+                return;
+            }
         }
     }
 
@@ -229,14 +251,6 @@ impl QueryClient {
         Ok(response)
     }
 
-}
-
-impl Drop for QueryClient {
-    fn drop(&mut self) {
-        self.reader_loop_handle.abort();
-        self.writer_loop_handle.abort();
-        self.keep_alive_loop_handle.abort();
-    }
 }
 
 struct TSCommand {

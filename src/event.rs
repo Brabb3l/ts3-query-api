@@ -3,10 +3,11 @@ use log::error;
 use crate::error::QueryError;
 use crate::macros::ts_response;
 use crate::parser::{CommandResponse, Encode};
+use crate::QueryClient;
 
 #[async_trait]
 pub trait EventHandler: Send + Sync {
-    async fn handle_event(&self, event: Event);
+    async fn handle_event(&self, client: QueryClient, event: Event);
 
     /// Returns true if the error should cause the connection to be closed, false otherwise
     async fn handle_error(&self, error: QueryError) -> bool {
@@ -85,7 +86,7 @@ pub struct DefaultEventHandler;
 
 #[async_trait]
 impl EventHandler for DefaultEventHandler {
-    async fn handle_event(&self, _event: Event) {}
+    async fn handle_event(&self, _client: QueryClient, _event: Event) {}
 }
 
 ts_response! {
