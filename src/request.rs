@@ -14,7 +14,7 @@ use crate::properties::ChannelProperty;
 // [ ] bandelall
 // [ ] banlist
 // [ ] bindinglist
-// [ ] channeladdperm
+// [X] channeladdperm
 // [ ] channelclientaddperm
 // [ ] channelclientdelperm
 // [ ] channelclientpermlist
