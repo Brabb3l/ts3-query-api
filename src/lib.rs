@@ -29,7 +29,7 @@
 ///
 /// #[async_trait::async_trait]
 /// impl EventHandler for MyHandler {
-///     async fn handle_event(&self, event: Event) {
+///     async fn handle_event(&self, client: QueryClient, event: Event) {
 ///         match event {
 ///             Event::TextMessage(event) => {
 ///                 println!("Received text message from {}: {}", event.invoker_id, event.message);
@@ -62,7 +62,7 @@
 
 mod client;
 
-pub mod request;
+pub mod requests;
 
 pub mod parser;
 pub mod responses;
