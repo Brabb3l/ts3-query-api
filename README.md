@@ -32,7 +32,7 @@ struct MyHandler;
 
 #[async_trait::async_trait]
 impl EventHandler for MyHandler {
-    async fn handle_event(&self, event: Event) {
+    async fn handle_event(&self, _client: QueryClient, event: Event) {
         match event {
             Event::TextMessage(event) => {
                 println!("Received text message from {}: {}", event.invoker_id, event.message);
