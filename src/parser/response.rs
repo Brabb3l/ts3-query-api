@@ -22,11 +22,6 @@ impl CommandResponse {
             None => Ok(default()),
         }
     }
-
-    // Only for debugging purposes to prevent Drop from logging warnings
-    pub(crate) fn clear(&mut self) {
-        self.args.clear();
-    }
 }
 
 // decoder
