@@ -8,6 +8,7 @@ pub enum QueryError {
     MalformedUTF8(std::str::Utf8Error),
     ConnectionFailed(std::io::Error),
     ReadError(std::io::Error),
+    WriteError(std::io::Error),
     FormatError(std::fmt::Error),
 
     // response parser
@@ -23,6 +24,7 @@ pub enum QueryError {
     NotTS3Server,
     UnknownKey { response: String, key: String },
     UnknownEvent { response: String, event: String },
+    InvalidArgument { name: String, message: String },
 
     QueryError { id: i32, message: String, response: CommandResponse }
 }

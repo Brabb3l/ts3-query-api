@@ -1,9 +1,7 @@
-use crate::client::QueryClient;
 use crate::error::QueryError;
-use crate::event::EventType;
-use crate::responses::{ChannelInfo, ChannelListBannerEntry, ChannelListFlagsEntry, ChannelListDynamicEntry, ChannelListIconEntry, ChannelListEntry, ChannelListLimitsEntry, ChannelListSecondsEmptyEntry, ChannelListTopicEntry, ChannelListVoiceEntry, ClientListAwayEntry, ClientListDynamicEntry, ClientListGroupsEntry, ClientListEntry, ClientListTimesEntry, ClientListUidEntry, ClientListVoiceEntry, Version, ClientListInfoEntry, ClientListCountryEntry, ClientListIpEntry, ClientListIconEntry, ClientListBadgesEntry, ClientInfo, WhoAmI};
+use crate::definitions::*;
 use crate::parser::Command;
-use crate::properties::ChannelProperty;
+use crate::QueryClient;
 
 // TODO:
 // [ ] apikeyadd
@@ -157,6 +155,13 @@ impl QueryClient {
         Ok(())
     }
 
+    pub async fn help(&self) -> Result<String, QueryError> {
+        let command = Command::new("help");
+        let response = self.send_command(command).await?;
+
+        Ok(response)
+    }
+
     pub async fn login(
         &self,
         username: &str,
@@ -180,6 +185,8 @@ impl QueryClient {
     }
 
     pub async fn version(&self) -> Result<Version, QueryError> {
+        println!("version");
+
         let command = Command::new("version");
         let mut response = self.send_command_decode(command).await?;
 
@@ -193,7 +200,7 @@ impl QueryClient {
         WhoAmI::from(&mut response)
     }
 
-    pub async fn use_sid(&self, sid: i32) -> Result<(), QueryError> {
+    pub async fn use_sid(&self, sid: u32) -> Result<(), QueryError> {
         let command = Command::new("use")
             .arg("sid", sid)?;
 
@@ -273,13 +280,26 @@ impl QueryClient {
         Ok(channels)
     }
 
-    pub async fn channel_info(&self, id: i32) -> Result<ChannelInfo, QueryError> {
+    pub async fn channel_info(&self, id: u32) -> Result<ChannelInfo, QueryError> {
         let command = Command::new("channelinfo")
             .arg("cid", id)?;
 
         let mut response = self.send_command_decode(command).await?;
 
         ChannelInfo::from(&mut response)
+    }
+
+    pub async fn channel_info_multiple(&self, ids: &[u32]) -> Result<Vec<ChannelInfo>, QueryError> {
+        let command = Command::new("channelinfo")
+            .arg_list("cid", ids)?;
+
+        let mut channels = Vec::new();
+
+        for mut response in self.send_command_multi_decode(command).await? {
+            channels.push(ChannelInfo::from(&mut response)?);
+        }
+
+        Ok(channels)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -356,7 +376,7 @@ impl QueryClient {
         Ok(clients)
     }
 
-    pub async fn client_info(&self, id: i32) -> Result<ClientInfo, QueryError> {
+    pub async fn client_info(&self, id: u32) -> Result<ClientInfo, QueryError> {
         let command = Command::new("clientinfo")
             .arg("clid", id)?;
 
@@ -365,7 +385,7 @@ impl QueryClient {
         ClientInfo::from(&mut response)
     }
 
-    pub async fn client_info_multiple(&self, ids: &[i32]) -> Result<Vec<ClientInfo>, QueryError> {
+    pub async fn client_info_multiple(&self, ids: &[u32]) -> Result<Vec<ClientInfo>, QueryError> {
         let command = Command::new("clientinfo")
             .arg_list("clid", ids)?;
 
@@ -399,8 +419,8 @@ impl QueryClient {
 
     pub async fn client_move(
         &self,
-        client_ids: &[i32],
-        channel_id: i32,
+        client_ids: &[u32],
+        channel_id: u32,
         password: Option<&str>,
         continue_on_error: bool,
     ) -> Result<(), QueryError> {
@@ -418,7 +438,7 @@ impl QueryClient {
         Ok(())
     }
 
-    pub async fn channel_delete(&self, channel_id: i32, force: bool) -> Result<(), QueryError> {
+    pub async fn channel_delete(&self, channel_id: u32, force: bool) -> Result<(), QueryError> {
         let command = Command::new("channeldelete")
             .flag("force", force)
             .arg("cid", channel_id)?;
@@ -430,7 +450,7 @@ impl QueryClient {
 
     pub async fn channel_edit(
         &self,
-        channel_id: i32,
+        channel_id: u32,
         properties: Vec<ChannelProperty<'_>>,
     ) -> Result<(), QueryError> {
         let mut command = Command::new("channeledit")
@@ -449,9 +469,9 @@ impl QueryClient {
 
     pub async fn channel_add_perm_id(
         &self,
-        channel_id: i32,
-        perms_id: i32,
-        perms_value: i32,
+        channel_id: u32,
+        perms_id: u32,
+        perms_value: u32,
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
             .arg("cid", channel_id)?
@@ -465,9 +485,9 @@ impl QueryClient {
 
     pub async fn channel_add_perm_sid(
         &self,
-        channel_id: i32,
+        channel_id: u32,
         perms_id: &str,
-        perms_value: i32,
+        perms_value: u32,
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
             .arg("cid", channel_id)?
@@ -482,13 +502,53 @@ impl QueryClient {
     pub async fn server_notify_register(
         &self,
         event: EventType,
-        channel_id: Option<i32>,
     ) -> Result<(), QueryError> {
-        let command = Command::new("servernotifyregister")
-            .arg("event", event)?
-            .arg_opt("id", channel_id)?;
+        match event {
+            EventType::Channel | EventType::TextChannel => {
+                self.server_notify_register_channel(event, 0).await
+            }
+            _ => {
+                let command = Command::new("servernotifyregister")
+                    .arg("event", event)?;
 
-        self.send_command(command).await?;
+                self.send_command(command).await?;
+
+                Ok(())
+            }
+        }
+    }
+
+    pub async fn server_notify_register_channel(
+        &self,
+        event: EventType,
+        channel_id: u32,
+    ) -> Result<(), QueryError> {
+        match event {
+            EventType::Channel | EventType::TextChannel => {
+                let command = Command::new("servernotifyregister")
+                    .arg("event", event)?
+                    .arg("id", channel_id)?;
+
+                self.send_command(command).await?;
+
+                Ok(())
+            },
+            _ => {
+                Err(QueryError::InvalidArgument {
+                    name: "event".to_owned(),
+                    message: "Must be EventType::Channel or EventType::TextChannel".to_owned(),
+                })
+            }
+        }
+    }
+
+    pub async fn server_notify_register_all(&self) -> Result<(), QueryError> {
+        self.server_notify_register(EventType::Server).await?;
+        self.server_notify_register(EventType::Channel).await?;
+        self.server_notify_register(EventType::TextChannel).await?;
+        self.server_notify_register(EventType::TextPrivate).await?;
+        self.server_notify_register(EventType::TextServer).await?;
+        self.server_notify_register(EventType::TokenUsed).await?;
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 mod command;
 mod response;
-mod util;
+mod escape;
 
 pub use command::*;
 pub use response::*;

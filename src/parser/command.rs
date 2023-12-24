@@ -1,6 +1,6 @@
 use std::fmt::{Arguments, Display, Write};
 use crate::error::QueryError;
-use crate::parser::util::escape;
+use crate::parser::escape::escape;
 
 pub struct Command {
     pub buf: String,

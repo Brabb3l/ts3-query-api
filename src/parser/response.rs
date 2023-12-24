@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use log::warn;
 use crate::error::QueryError;
-use crate::parser::util::unescape;
+use crate::parser::escape::unescape;
 
 #[derive(Debug)]
 pub struct CommandResponse {
@@ -12,12 +12,15 @@ pub struct CommandResponse {
 
 // getters
 impl CommandResponse {
-    pub fn get<D: Decode>(&mut self, key: &str) -> Result<D, QueryError> {
-        let val = self.args.remove(key).ok_or_else(|| QueryError::MissingArg {
-            key: key.to_string(),
-        })?;
+    pub fn get<D: Decode + Default>(&mut self, key: &str) -> Result<D, QueryError> {
+        self.get_or(key, D::default)
+    }
 
-        D::decode(key, val)
+    pub fn get_or<D: Decode, F: FnOnce() -> D>(&mut self, key: &str, default: F) -> Result<D, QueryError> {
+        match self.args.remove(key) {
+            Some(val) => D::decode(key, val),
+            None => Ok(default()),
+        }
     }
 
     // Only for debugging purposes to prevent Drop from logging warnings
@@ -105,6 +108,10 @@ impl Drop for CommandResponse {
     fn drop(&mut self) {
         // Only for debugging if stuff is missing
         for (key, val) in &self.args {
+            if key == "msg" {
+                continue;
+            }
+
             warn!("Missing {} with value {} in \"{}\"", key, val, self);
         }
     }
@@ -112,6 +119,17 @@ impl Drop for CommandResponse {
 
 pub trait Decode: Sized {
     fn decode(key: &str, value: String) -> Result<Self, QueryError>;
+}
+
+// placeholder
+impl<T : Decode> Decode for Option<T> {
+    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+        if value.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(T::decode(_key, value)?))
+    }
 }
 
 impl Decode for String {
@@ -165,7 +183,7 @@ macro_rules! impl_decode {
     };
 }
 
-impl_decode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+impl_decode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128, f32, f64);
 
 #[cfg(test)]
 mod test {

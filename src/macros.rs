@@ -5,9 +5,9 @@ macro_rules! property {
     ($value_name:ident, bool) => {
         PropertyType::Bool($value_name)
     };
-    ($value_name:ident, i32) => {
+    ($value_name:ident, u32) => {
         PropertyType::Int($value_name)
-    }
+    };
 }
 
 macro_rules! property_type {
@@ -17,8 +17,8 @@ macro_rules! property_type {
     (bool) => {
         bool
     };
-    (i32) => {
-        i32
+    (u32) => {
+        u32
     }
 }
 
@@ -57,9 +57,18 @@ macro_rules! ts_response_str {
     }
 }
 
+macro_rules! ts_response_getter {
+    ($response:expr, $field_value:expr) => {
+        $response.get($field_value)
+    };
+    ($response:expr, $field_value:expr, $default:expr) => {
+        $response.get_or($field_value, || $default)
+    };
+}
+
 macro_rules! ts_response {
     ($type:ident {
-        $($field:ident$(($str:expr))?: $field_type:ident $(<$generics:ident>)?),* $(,)?
+        $($field:ident$(($str:expr))?: $field_type:ident $(<$generics:ident>)? $(= $default:expr)?),* $(,)?
     }) => {
         #[allow(dead_code)]
         #[derive(Debug)]
@@ -70,11 +79,45 @@ macro_rules! ts_response {
         impl $type {
             pub fn from(response: &mut $crate::parser::CommandResponse) -> Result<Self, $crate::error::QueryError> {
                 Ok(Self {
-                    $($field: response.get::<$field_type$(<$generics>)?>($crate::macros::ts_response_str!($field $(, $str)?))?),*
+                    $($field: $crate::macros::ts_response_getter!(
+                        response,
+                        $crate::macros::ts_response_str!($field $(, $str)?)
+                        $(, $default)?
+                    )?),*
                 })
             }
         }
     }
+}
+
+macro_rules! ts_enum {
+    (
+        $type:ident {
+            $($name:ident = $value:expr),* $(,)?
+        }
+    ) => {
+        #[allow(dead_code)]
+        #[derive(Debug)]
+        pub enum $type {
+            $($name),*,
+            Unknown(String),
+        }
+
+        impl crate::parser::Decode for $type {
+            fn decode(_key: &str, value: String) -> Result<Self, $crate::error::QueryError> {
+                match value.as_str() {
+                    $( stringify!($value) => Ok($type::$name), )*
+                    _ => Ok($type::Unknown(value)),
+                }
+            }
+        }
+
+        impl Default for $type {
+            fn default() -> Self {
+                $type::Unknown("default".to_string())
+            }
+        }
+    };
 }
 
 pub(crate) use property;
@@ -82,3 +125,5 @@ pub(crate) use property_type;
 pub(crate) use properties;
 pub(crate) use ts_response;
 pub(crate) use ts_response_str;
+pub(crate) use ts_response_getter;
+pub(crate) use ts_enum;
