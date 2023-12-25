@@ -1,4 +1,3 @@
-use log::error;
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::spawn;
 use crate::error::QueryError;
@@ -10,6 +9,7 @@ use crate::protocol::types::{RawCommandRequest, RawCommandResponse};
 pub struct QueryClient {
     command_tx: flume::Sender<RawCommandRequest>,
     event_rx: flume::Receiver<Event>,
+    shutdown_tx: flume::Sender<()>
 }
 
 impl QueryClient {
@@ -20,21 +20,18 @@ impl QueryClient {
 
         let (command_tx, command_rx) = flume::unbounded::<RawCommandRequest>();
         let (event_tx, event_rx) = flume::unbounded::<Event>();
-        let mut connection = Connection::new(stream, event_tx, command_rx, command_tx.clone());
+        let (shutdown_tx, shutdown_rx) = flume::unbounded::<()>();
+
+        let mut connection = Connection::new(stream, event_tx, command_rx, command_tx.clone(), shutdown_rx);
 
         connection.read_welcome_message().await?;
 
-        spawn(async move {
-            if let Err(e) = connection.run().await {
-                error!("Connection closed: {:?}", e);
-            }
-
-            println!("Connection closed")
-        });
+        spawn(connection.run());
 
         Ok(Self {
             command_tx,
             event_rx,
+            shutdown_tx,
         })
     }
 
@@ -87,4 +84,10 @@ impl QueryClient {
         Ok(response)
     }
 
+}
+
+impl Drop for QueryClient {
+    fn drop(&mut self) {
+        let _ = self.shutdown_tx.send(());
+    }
 }

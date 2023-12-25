@@ -10,6 +10,7 @@ pub(super) struct Connection {
     reader: Reader,
     writer: Writer,
     command_tx: flume::Sender<RawCommandRequest>,
+    shutdown_rx: flume::Receiver<()>,
 }
 
 impl Connection {
@@ -18,6 +19,7 @@ impl Connection {
         event_tx: flume::Sender<Event>,
         command_rx: flume::Receiver<RawCommandRequest>,
         command_tx: flume::Sender<RawCommandRequest>,
+        shutdown_rx: flume::Receiver<()>,
     ) -> Self {
         let (response_tx, response_rx) = flume::unbounded::<RawCommandResponse>();
         let (reader, writer) = stream.into_split();
@@ -26,6 +28,7 @@ impl Connection {
             reader: Reader::new(reader, response_tx, event_tx),
             writer: Writer::new(writer, response_rx, command_rx),
             command_tx,
+            shutdown_rx,
         }
     }
 
@@ -34,16 +37,12 @@ impl Connection {
     }
 
     pub async fn run(self) -> Result<(), QueryError> {
-        let reader_handle = tokio::spawn(self.reader.run());
-        let writer_handle = tokio::spawn(self.writer.run());
-        let keep_alive_handle = tokio::spawn(Self::keep_alive_loop(self.command_tx));
-
-        let (r1, r2, r3) = tokio::try_join!(reader_handle, writer_handle, keep_alive_handle)
-            .expect("Failed to join threads");
-
-        r1?;
-        r2?;
-        r3?;
+        tokio::select! {
+            r = self.reader.run() => r?,
+            r = self.writer.run() => r?,
+            r = Self::keep_alive_loop(self.command_tx) => r?,
+            _ = self.shutdown_rx.recv_async() => {},
+        }
 
         Ok(())
     }
