@@ -15,6 +15,7 @@ pub(super) struct Reader {
 
     read_buffer: [u8; 512],
     receive_buffer: BytesMut,
+    last_cr_pos: usize,
     last_scan_pos: usize,
 }
 
@@ -30,6 +31,7 @@ impl Reader {
             event_tx,
             read_buffer: [0; 512],
             receive_buffer: BytesMut::new(),
+            last_cr_pos: 0,
             last_scan_pos: 0,
         }
     }
@@ -68,16 +70,28 @@ impl Reader {
     }
 
     fn try_next(&mut self) -> Result<Option<QueryResponse>, QueryError> {
-        while let Some(pos) = self.receive_buffer[self.last_scan_pos..]
-            .iter()
-            .position(|&b| b == b'\r') {
+        loop {
+            if self.last_scan_pos >= self.receive_buffer.len() {
+                break;
+            }
+
+            let pos = self.receive_buffer[self.last_scan_pos..]
+                .iter()
+                .position(|&b| b == b'\r');
+
+            let pos = match pos {
+                Some(pos) => pos,
+                None => break
+            };
+
             let pos = pos + self.last_scan_pos + 1;
-            let start = &self.receive_buffer[self.last_scan_pos..pos];
+            let start = &self.receive_buffer[self.last_cr_pos..pos];
 
             if start.starts_with(b"error") {
                 let response = self.receive_buffer.split_to(pos);
-                let (content, status) = response.split_at(self.last_scan_pos);
+                let (content, status) = response.split_at(self.last_cr_pos);
 
+                self.last_cr_pos = 0;
                 self.last_scan_pos = 0;
 
                 let content = std::str::from_utf8(&content[..max(2, content.len()) - 2])
@@ -102,6 +116,7 @@ impl Reader {
             } else if start.starts_with(b"notify") {
                 let status = self.receive_buffer.split_to(pos);
 
+                self.last_cr_pos = 0;
                 self.last_scan_pos = 0;
 
                 let status = std::str::from_utf8(&status[..status.len() - 2])
@@ -115,8 +130,11 @@ impl Reader {
                 return Ok(Some(QueryResponse::Event(event)));
             }
 
+            self.last_cr_pos = pos;
             self.last_scan_pos = pos;
         }
+
+        self.last_scan_pos = self.receive_buffer.len();
 
         Ok(None)
     }
