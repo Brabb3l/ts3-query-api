@@ -21,13 +21,15 @@ ts_response! {
         virtualserver_id: u32,
         virtualserver_unique_identifier: String,
         virtualserver_port: u32,
-        client_id: u32,
-        client_channel_id: u32,
-        client_nickname: String,
-        client_database_id: u32,
-        client_login_name: String,
-        client_unique_identifier: String,
-        client_origin_server_id: u32
+
+        id("client_id"): u32,
+        database_id("client_database_id"): u32,
+        unique_identifier("client_unique_identifier"): String,
+
+        nickname("client_nickname"): String,
+        login_name("client_login_name"): String,
+        channel_id("client_channel_id"): u32,
+        origin_server_id("client_origin_server_id"): u32,
     }
 }
 
@@ -35,50 +37,50 @@ ts_response! {
 
 ts_response! {
     ChannelListEntry {
-        channel_id("cid"): u32,
+        id("cid"): u32,
         parent_id("pid"): u32,
 
-        channel_name: String,
-        channel_order: u32,
+        name("channel_name"): String,
+        order("channel_order"): u32,
         total_clients: u32,
-        channel_needed_subscribe_power: u32,
+        needed_subscribe_power("channel_needed_subscribe_power"): u32,
     }
 }
 
 ts_response! {
     ChannelListTopicEntry {
-        channel_topic: String
+        topic("channel_topic"): String
     }
 }
 
 ts_response! {
     ChannelListFlagsEntry {
-        channel_flag_default: bool,
-        channel_flag_password: bool,
-        channel_flag_permanent: bool,
-        channel_flag_semi_permanent: bool
+        flag_default("channel_flag_default"): bool,
+        flag_password("channel_flag_password"): bool,
+        flag_permanent("channel_flag_permanent"): bool,
+        flag_semi_permanent("channel_flag_semi_permanent"): bool,
     }
 }
 
 ts_response! {
     ChannelListVoiceEntry {
-        channel_codec: Codec = Codec::OpusVoice,
-        channel_codec_quality: u8,
-        channel_needed_talk_power: u32
+        codec("channel_codec"): Codec = Codec::OpusVoice,
+        codec_quality("channel_codec_quality"): u8,
+        needed_talk_power("channel_needed_talk_power"): u32
     }
 }
 
 ts_response! {
     ChannelListLimitsEntry {
         total_clients_family: u32,
-        channel_maxclients: i32,
-        channel_maxfamilyclients: i32
+        max_clients("channel_maxclients"): i32,
+        max_family_clients("channel_maxfamilyclients"): i32
     }
 }
 
 ts_response! {
     ChannelListIconEntry {
-        channel_icon_id: u32
+        icon_id("channel_icon_id"): u32
     }
 }
 
@@ -90,8 +92,8 @@ ts_response! {
 
 ts_response! {
     ChannelListBannerEntry {
-        channel_banner_gfx_url: String,
-        channel_banner_mode: u32
+        banner_gfx_url("channel_banner_gfx_url"): String,
+        banner_mode("channel_banner_mode"): u32
     }
 }
 
@@ -101,38 +103,41 @@ ts_response! {
     ChannelInfo {
         parent_id("pid"): u32,
 
-        // property fields
-        channel_topic: String,
-        channel_description: String,
-        channel_password: String,
-        channel_codec: Codec = Codec::OpusVoice,
-        channel_codec_quality: u8,
-        channel_maxclients: i32,
-        channel_maxfamilyclients: i32,
-        channel_order: u32,
-        channel_flag_permanent: bool,
-        channel_flag_semi_permanent: bool,
-        channel_flag_default: bool,
-        channel_flag_maxclients_unlimited: bool,
-        channel_flag_maxfamilyclients_unlimited: bool,
-        channel_flag_maxfamilyclients_inherited: bool,
-        channel_needed_talk_power: u32,
-        channel_name_phonetic: String,
-        channel_forced_silence: bool,
-        channel_icon_id: u32,
-        channel_codec_is_unencrypted: bool,
-        channel_banner_gfx_url: String,
-        channel_banner_mode: u32,
-        channel_delete_delay: u32,
+        name("channel_name"): String,
+        unique_identifier("channel_unique_identifier"): String,
 
-        // non-property fields
-        channel_name: String,
-        channel_flag_password: bool,
-        channel_filepath: String,
-        channel_unique_identifier: String,
+        name_phonetic("channel_name_phonetic"): Option<String>,
+        topic("channel_topic"): Option<String>,
+        description("channel_description"): Option<String>,
+        password("channel_password"): Option<String>,
+        icon_id("channel_icon_id"): u32,
+        banner_gfx_url("channel_banner_gfx_url"): Option<String>,
+        banner_mode("channel_banner_mode"): u32,
+
+        codec("channel_codec"): Codec = Codec::OpusVoice,
+        codec_quality("channel_codec_quality"): u8,
+        codec_latency_factor("channel_codec_latency_factor"): u32,
+        codec_is_unencrypted("channel_codec_is_unencrypted"): bool,
+
+        max_clients("channel_maxclients"): i32,
+        max_family_clients("channel_maxfamilyclients"): i32,
+        order("channel_order"): u32,
+
+        flag_permanent("channel_flag_permanent"): bool,
+        flag_semi_permanent("channel_flag_semi_permanent"): bool,
+        flag_default("channel_flag_default"): bool,
+        flag_maxclients_unlimited("channel_flag_maxclients_unlimited"): bool,
+        flag_maxfamilyclients_unlimited("channel_flag_maxfamilyclients_unlimited"): bool,
+        flag_maxfamilyclients_inherited("channel_flag_maxfamilyclients_inherited"): bool,
+        flag_password("channel_flag_password"): bool,
+
+        needed_talk_power("channel_needed_talk_power"): u32,
+        forced_silence("channel_forced_silence"): bool,
+
+        filepath("channel_filepath"): String,
         seconds_empty: u32,
-        channel_security_salt: String,
-        channel_codec_latency_factor: u32
+        delete_delay("channel_delete_delay"): u32,
+        security_salt("channel_security_salt"): String,
     }
 }
 
@@ -140,86 +145,86 @@ ts_response! {
 
 ts_response! {
     ClientListEntry {
-        client_id("clid"): u32,
+        id("clid"): u32,
         channel_id("cid"): u32,
-        client_database_id: u32,
-        client_nickname: String,
+        database_id("client_database_id"): u32,
+        nickname("client_nickname"): String,
         is_query("client_type"): bool
     }
 }
 
 ts_response! {
     ClientListUidEntry {
-        client_unique_identifier: String
+        unique_identifier("client_unique_identifier"): String
     }
 }
 
 ts_response! {
     ClientListAwayEntry {
-        client_away: bool,
-        client_away_message: String
+        away("client_away"): bool,
+        away_message("client_away_message"): String
     }
 }
 
 ts_response! {
     ClientListVoiceEntry {
-        client_flag_talking: bool,
-        client_input_muted: bool,
-        client_output_muted: bool,
-        client_input_hardware: bool,
-        client_output_hardware: bool,
-        client_talk_power: u32,
-        client_is_talker: bool,
-        client_is_priority_speaker: bool,
-        client_is_channel_commander: bool,
-        client_is_recording: bool,
+        flag_talking("client_flag_talking"): bool,
+        input_muted("client_input_muted"): bool,
+        output_muted("client_output_muted"): bool,
+        input_hardware("client_input_hardware"): bool,
+        output_hardware("client_output_hardware"): bool,
+        talk_power("client_talk_power"): u32,
+        is_talker("client_is_talker"): bool,
+        is_priority_speaker("client_is_priority_speaker"): bool,
+        is_channel_commander("client_is_channel_commander"): bool,
+        is_recording("client_is_recording"): bool,
     }
 }
 
 ts_response! {
     ClientListTimesEntry {
-        client_idle_time: u32,
-        client_created: u32,
-        client_lastconnected: u32
+        idle_time("client_idle_time"): u32,
+        created("client_created"): u32,
+        last_connected("client_lastconnected"): u32,
     }
 }
 
 ts_response! {
     ClientListGroupsEntry {
-        client_servergroups: Vec<u32>,
-        client_channel_group_id: u32,
-        client_channel_group_inherited_channel_id: u32
+        server_groups("client_servergroups"): Vec<u32>,
+        channel_group_id("client_channel_group_id"): u32,
+        channel_group_inherited_channel_id("client_channel_group_inherited_channel_id"): u32
     }
 }
 
 ts_response! {
     ClientListInfoEntry {
-        client_version: String,
-        client_platform: String
+        version("client_version"): String,
+        platform("client_platform"): String,
     }
 }
 
 ts_response! {
     ClientListCountryEntry {
-        client_country: String
+        country("client_country"): String
     }
 }
 
 ts_response! {
     ClientListIpEntry {
-        connection_client_ip: String
+        client_ip("connection_client_ip"): String
     }
 }
 
 ts_response! {
     ClientListIconEntry {
-        client_icon_id: u32
+        icon_id("client_icon_id"): u32
     }
 }
 
 ts_response! {
     ClientListBadgesEntry {
-        client_badges: Badges
+        badges("client_badges"): Badges
     }
 }
 
@@ -227,83 +232,83 @@ ts_response! {
 
 ts_response! {
     ClientInfo {
-        client_id("clid"): u32,
+        id("clid"): u32,
 
-        client_nickname: String,
-        client_unique_identifier: String,
-        client_database_id: u32,
+        nickname("client_nickname"): String,
+        unique_identifier("client_unique_identifier"): String,
+        database_id("client_database_id"): u32,
 
         channel_id("cid"): u32,
 
-        client_version: String,
-        client_platform: String,
-        client_base64_hash_client_uid("client_base64HashClientUID"): String,
+        version("client_version"): String,
+        platform("client_platform"): String,
+        base64_hash_client_uid("client_base64HashClientUID"): String,
 
-        client_login_name: String,
-        client_nickname_phonetic: Option<String>,
-        client_description: Option<String>,
-        client_icon_id: u32,
-        client_country: Option<String>,
-        client_badges: Badges,
-        client_signed_badges: Vec<String>,
-        client_myteamspeak_id: Option<String>,
-        client_myteamspeak_avatar: Option<String>,
-        client_integrations: Option<String>,
+        login_name("client_login_name"): String,
+        nickname_phonetic("client_nickname_phonetic"): Option<String>,
+        description("client_description"): Option<String>,
+        icon_id("client_icon_id"): u32,
+        country("client_country"): Option<String>,
+        badges("client_badges"): Badges,
+        signed_badges("client_signed_badges"): Vec<String>,
+        myteamspeak_id("client_myteamspeak_id"): String,
+        myteamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
+        integrations("client_integrations"): Option<String>,
+        flag_avatar("client_flag_avatar"): Option<String>,
 
-        client_idle_time: u32,
-        client_away: bool,
-        client_away_message: String,
+        idle_time("client_idle_time"): u32,
+        away("client_away"): bool,
+        away_message("client_away_message"): Option<String>,
 
-        client_default_channel: String,
-        client_meta_data: Option<String>,
-        client_version_sign: String,
-        client_security_hash: String,
-        client_unread_messages: u32,
+        default_channel("client_default_channel"): String,
+        meta_data("client_meta_data"): Option<String>,
+        version_sign("client_version_sign"): String,
+        security_hash("client_security_hash"): String,
+        unread_messages("client_unread_messages"): u32,
 
-        client_channel_group_id: u32,
-        client_servergroups: Vec<u32>,
+        channel_group_id("client_channel_group_id"): u32,
+        server_groups("client_servergroups"): Vec<u32>,
 
-        client_created: u32,
-        client_lastconnected: u32,
-        client_totalconnections: u32,
+        created("client_created"): u32,
+        last_connected("client_lastconnected"): u32,
+        total_connections("client_totalconnections"): u32,
 
         is_query("client_type"): bool,
 
-        client_input_muted: bool,
-        client_output_muted: bool,
-        client_outputonly_muted: bool,
-        client_input_hardware: bool,
-        client_output_hardware: bool,
-        client_flag_avatar: Option<String>,
-        client_talk_power: u32,
-        client_talk_request: u32,
-        client_talk_request_msg: Option<String>,
-        client_is_talker: bool,
-        client_is_priority_speaker: bool,
-        client_is_channel_commander: bool,
-        client_is_recording: bool,
+        input_muted("client_input_muted"): bool,
+        output_muted("client_output_muted"): bool,
+        outputonly_muted("client_outputonly_muted"): bool,
+        input_hardware("client_input_hardware"): bool,
+        output_hardware("client_output_hardware"): bool,
+        talk_power("client_talk_power"): u32,
+        talk_request("client_talk_request"): bool,
+        talk_request_msg("client_talk_request_msg"): Option<String>,
+        is_talker("client_is_talker"): bool,
+        is_priority_speaker("client_is_priority_speaker"): bool,
+        is_channel_commander("client_is_channel_commander"): bool,
+        is_recording("client_is_recording"): bool,
 
-        client_month_bytes_uploaded: u32,
-        client_month_bytes_downloaded: u32,
-        client_total_bytes_uploaded: u32,
-        client_total_bytes_downloaded: u32,
+        month_bytes_uploaded("client_month_bytes_uploaded"): u32,
+        month_bytes_downloaded("client_month_bytes_downloaded"): u32,
+        total_bytes_uploaded("client_total_bytes_uploaded"): u32,
+        total_bytes_downloaded("client_total_bytes_downloaded"): u32,
 
-        client_needed_serverquery_view_power: u32,
-        client_channel_group_inherited_channel_id: u32,
-        client_default_token: String,
+        needed_serverquery_view_power("client_needed_serverquery_view_power"): u32,
+        channel_group_inherited_channel_id("client_channel_group_inherited_channel_id"): u32,
+        default_token("client_default_token"): String,
 
-        connection_filetransfer_bandwidth_sent: u32,
-        connection_filetransfer_bandwidth_received: u32,
-        connection_packets_sent_total: u32,
-        connection_bytes_sent_total: u32,
-        connection_packets_received_total: u32,
-        connection_bytes_received_total: u32,
-        connection_bandwidth_sent_last_second_total: u32,
-        connection_bandwidth_sent_last_minute_total: u32,
-        connection_bandwidth_received_last_second_total: u32,
-        connection_bandwidth_received_last_minute_total: u32,
-        connection_connected_time: u32,
-        connection_client_ip: String
+        file_transfer_bandwidth_sent("connection_filetransfer_bandwidth_sent"): u32,
+        file_transfer_bandwidth_received("connection_filetransfer_bandwidth_received"): u32,
+        packets_sent_total("connection_packets_sent_total"): u32,
+        bytes_sent_total("connection_bytes_sent_total"): u32,
+        packets_received_total("connection_packets_received_total"): u32,
+        bytes_received_total("connection_bytes_received_total"): u32,
+        bandwidth_sent_last_second_total("connection_bandwidth_sent_last_second_total"): u32,
+        bandwidth_sent_last_minute_total("connection_bandwidth_sent_last_minute_total"): u32,
+        bandwidth_received_last_second_total("connection_bandwidth_received_last_second_total"): u32,
+        bandwidth_received_last_minute_total("connection_bandwidth_received_last_minute_total"): u32,
+        connected_time("connection_connected_time"): u32,
+        client_ip("connection_client_ip"): String,
     }
 }
 
