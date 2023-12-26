@@ -1,4 +1,3 @@
-use crate::event::Event;
 use crate::parser::CommandResponse;
 
 pub(super) struct RawCommandRequest {
@@ -10,9 +9,3 @@ pub(super) struct RawCommandResponse {
     pub status: CommandResponse,
     pub content: String,
 }
-
-pub(super) enum QueryResponse {
-    Response(RawCommandResponse),
-    Event(Event)
-}
-
