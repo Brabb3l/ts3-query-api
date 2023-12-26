@@ -51,10 +51,47 @@ impl CommandResponse {
             let val = parts.next();
 
             if let Some(val) = val {
-                let mut result = String::new();
+                if val.contains('|') {
+                    let mut buf = String::new();
 
-                unescape(val, &mut result)?;
-                args.insert(key.to_owned(), result);
+                    for arg in arg.split('|') {
+                        let mut parts = arg.splitn(2, '=');
+                        let sub_key = parts.next()
+                            .ok_or_else(|| QueryError::MissingKey {
+                                response: buf.to_string(),
+                                key: arg.to_string(),
+                            })?;
+
+                        if sub_key != key {
+                            return Err(QueryError::InvalidArgument {
+                                name: sub_key.to_string(),
+                                message: format!("'{}' in multi-arg response does not match the first key '{}'", sub_key, key),
+                            });
+                        }
+
+                        let val = parts.next();
+
+                        if let Some(val) = val {
+                            if !buf.is_empty() {
+                                buf.push(',');
+                            }
+
+                            unescape(val, &mut buf)?;
+                        } else {
+                            return Err(QueryError::InvalidArgument {
+                                name: sub_key.to_string(),
+                                message: "Missing value".to_string(),
+                            });
+                        }
+                    }
+
+                    args.insert(key.to_owned(), buf);
+                } else {
+                    let mut result = String::new();
+
+                    unescape(val, &mut result)?;
+                    args.insert(key.to_owned(), result);
+                }
             } else {
                 args.insert(key.to_owned(), String::new());
             }
