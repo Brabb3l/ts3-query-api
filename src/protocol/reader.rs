@@ -6,7 +6,7 @@ use tokio::net::tcp::OwnedReadHalf;
 use crate::error::QueryError;
 use crate::event::Event;
 use crate::parser::CommandResponse;
-use crate::protocol::types::{RawCommandResponse, QueryResponse};
+use crate::protocol::types::RawCommandResponse;
 
 pub(super) struct Reader {
     reader: BufReader<OwnedReadHalf>,
@@ -38,38 +38,19 @@ impl Reader {
 
     pub async fn run(mut self) -> Result<(), QueryError> {
         loop {
-            let response = match self.next().await {
-                Ok(response) => response,
-                Err(e) => {
-                    error!("Connection closed: {:?}", e);
-                    return Err(e);
-                }
-            };
+            if let Err(e) = self.try_next().await {
+                error!("Connection closed: {:?}", e);
+                return Err(e);
+            }
 
-            match response {
-                QueryResponse::Response(response) => {
-                    self.response_tx.send_async(response).await
-                        .map_err(|_| QueryError::ConnectionClosed)?;
-                },
-                QueryResponse::Event(event) => {
-                    self.event_tx.send_async(event).await
-                        .map_err(|_| QueryError::ConnectionClosed)?;
-                }
+            if let Err(e) = self.wait_for_bytes().await {
+                error!("Connection closed: {:?}", e);
+                return Err(e);
             }
         }
     }
 
-    async fn next(&mut self) -> Result<QueryResponse, QueryError> {
-        loop {
-            if let Some(response) = self.try_next()? {
-                return Ok(response);
-            }
-
-            self.wait_for_bytes().await?;
-        }
-    }
-
-    fn try_next(&mut self) -> Result<Option<QueryResponse>, QueryError> {
+    async fn try_next(&mut self) -> Result<(), QueryError> {
         loop {
             if self.last_scan_pos >= self.receive_buffer.len() {
                 break;
@@ -112,7 +93,8 @@ impl Reader {
                     content: content.to_owned()
                 };
 
-                return Ok(Some(QueryResponse::Response(response)));
+                self.response_tx.send_async(response).await
+                    .map_err(|_| QueryError::ConnectionClosed)?;
             } else if start.starts_with(b"notify") {
                 let scrambled_data = self.receive_buffer.split_off(self.last_cr_pos);
                 let (status, remaining) = scrambled_data.split_at(pos - self.last_cr_pos);
@@ -124,19 +106,19 @@ impl Reader {
 
                 debug!("[S->C] {}", status);
 
-                let command = CommandResponse::decode(status, true)?;
-                let event = Event::from(command)?;
+                let event = Event::from(CommandResponse::decode(status, true)?)?;
 
-                return Ok(Some(QueryResponse::Event(event)));
+                self.event_tx.send_async(event).await
+                    .map_err(|_| QueryError::ConnectionClosed)?;
+            } else {
+                self.last_cr_pos = pos;
+                self.last_scan_pos = pos;
             }
-
-            self.last_cr_pos = pos;
-            self.last_scan_pos = pos;
         }
 
         self.last_scan_pos = self.receive_buffer.len();
 
-        Ok(None)
+        Ok(())
     }
 
     async fn wait_for_bytes(&mut self) -> Result<(), QueryError> {
