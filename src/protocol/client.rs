@@ -59,8 +59,17 @@ impl QueryClient {
     }
 
     pub async fn send_command_multi_decode(&self, command: Command) -> Result<Vec<CommandResponse>, QueryError> {
-        self.send_command(command).await
-            .map(|v| CommandResponse::decode_multi(&v))?
+        match self.send_command(command).await {
+            Ok(v) => CommandResponse::decode_multi(&v),
+            Err(QueryError::QueryError { id, message, response }) => {
+                if id == 1281 {
+                    Ok(Vec::new())
+                } else {
+                    Err(QueryError::QueryError { id, message, response })
+                }
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn wait_for_event(&self) -> Result<Event, QueryError> {
