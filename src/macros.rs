@@ -51,6 +51,54 @@ macro_rules! properties {
     }
 }
 
+macro_rules! permission {
+    ($value_name:ident, bool) => {
+        PermissionValue::Bool(*$value_name)
+    };
+    ($value_name:ident, i32) => {
+        PermissionValue::Int(*$value_name)
+    };
+}
+
+macro_rules! permission_value {
+    (bool) => {
+        bool
+    };
+    (i32) => {
+        i32
+    }
+}
+
+macro_rules! permissions {
+    ($type:ident {
+        $($name:ident: $ty:ident),* $(,)?
+    }) => {
+        #[allow(non_camel_case_types)]
+        #[allow(dead_code)]
+        pub enum $type<'a> {
+            $($name($crate::macros::permission_value!($ty))),*,
+            Custom(&'a str, PermissionValue),
+        }
+
+        #[allow(dead_code)]
+        impl<'a> $type<'a> {
+            pub fn contents(&'a self) -> (&'a str, PermissionValue) {
+                let name = match self {
+                    $( $type::$name { .. } => stringify!($name), )*
+                    $type::Custom(name, _) => name,
+                };
+
+                let value = match self {
+                    $( $type::$name(value) => $crate::macros::permission!(value, $ty), )*
+                    $type::Custom(_, value) => value.clone(),
+                };
+
+                (name, value)
+            }
+        }
+    }
+}
+
 macro_rules! ts_response_str {
     ($field:ident) => {
         stringify!($field)
@@ -115,6 +163,17 @@ macro_rules! ts_enum {
             }
         }
 
+        impl crate::parser::Encode for $type {
+            fn encode(&self, buf: &mut String) -> std::fmt::Result {
+                match self {
+                    $( $type::$name => buf.push_str(stringify!($value)), )*
+                    $type::Unknown(value) => buf.push_str(value),
+                }
+
+                Ok(())
+            }
+        }
+
         impl Default for $type {
             fn default() -> Self {
                 $type::Unknown("default".to_string())
@@ -123,10 +182,94 @@ macro_rules! ts_enum {
     };
 }
 
+macro_rules! opt_builder_func {
+    (
+        $func_name:ident, $name:ident, String
+    ) => {
+        pub fn $func_name(mut self, $name: impl Into<String>) -> Self {
+            self.$name = Some($name.into());
+            self
+        }
+    };
+    (
+        $func_name:ident, $name:ident, $field_type:ident
+    ) => {
+        pub fn $func_name(mut self, $name: $field_type) -> Self {
+            self.$name = Some($name);
+            self
+        }
+    };
+}
+
+macro_rules! opt_builder {
+    (
+        $type:ident {
+            $($name:ident($func_name:ident): $field_type:ident),* $(,)?
+        }
+    ) => {
+        #[derive(Debug, Default)]
+        pub struct $type {
+            $(pub $name: Option<$field_type>),*
+        }
+
+        impl $type {
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            $(
+                crate::macros::opt_builder_func!($func_name, $name, $field_type);
+            )*
+        }
+    };
+}
+
+macro_rules! flag_builder {
+    (
+        $type:ident {
+            $($name:ident($func_name:ident)),* $(,)?
+        }
+    ) => {
+        #[derive(Debug, Default)]
+        pub struct $type {
+            $(pub $name: bool),*
+        }
+
+        impl $type {
+            pub fn new() -> Self {
+                Self::default()
+            }
+
+            pub fn all() -> Self {
+                Self {
+                    $($name: true),*
+                }
+            }
+
+            $(
+                pub fn $func_name(mut self) -> Self {
+                    self.$name = true;
+                    self
+                }
+            )*
+        }
+    };
+}
+
 pub(crate) use property;
 pub(crate) use property_type;
 pub(crate) use properties;
+
+pub(crate) use permission;
+pub(crate) use permission_value;
+pub(crate) use permissions;
+
 pub(crate) use ts_response;
 pub(crate) use ts_response_str;
 pub(crate) use ts_response_getter;
+
 pub(crate) use ts_enum;
+
+pub(crate) use opt_builder;
+pub(crate) use opt_builder_func;
+pub(crate) use flag_builder;

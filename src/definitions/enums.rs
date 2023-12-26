@@ -61,3 +61,11 @@ ts_enum! {
         ServerShutdown = 11,
     }
 }
+
+ts_enum! {
+    Scope {
+        MANAGE = manage,
+        WRITE = write,
+        READ = read,
+    }
+}

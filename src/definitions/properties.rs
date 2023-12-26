@@ -55,3 +55,9 @@ properties! {
         BannerMode: u32 = "channel_banner_mode"
     }
 }
+
+// properties! {
+//     Permission {
+//
+//     }
+// }

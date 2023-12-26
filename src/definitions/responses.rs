@@ -3,6 +3,45 @@ use crate::macros::ts_response;
 use crate::parser::Decode;
 use super::*;
 
+// apikey
+
+ts_response! {
+    ApiKey {
+        key("apikey"): String,
+        id: u32,
+        server_id("sid"): u32,
+        client_database_id("cldbid"): u32,
+        scope: Scope,
+        time_left: u64,
+        created_at: u64,
+        expires_at: u64,
+    }
+}
+
+// ban
+
+ts_response! {
+    Ban {
+        id("banid"): u32,
+
+        ip: Option<String>,
+        name: Option<String>,
+        uid: Option<String>,
+        my_teamspeak_id("mytsid"): Option<String>,
+
+        invoker_name("invokername"): String,
+        invoker_uid("invokeruid"): String,
+        invoker_database_id("invokercldbid"): u32,
+
+        duration: u64,
+        reason: Option<String>,
+        last_nickname("lastnickname"): Option<String>,
+
+        created: u64,
+        enforcements: u32,
+    }
+}
+
 // version
 
 ts_response! {
