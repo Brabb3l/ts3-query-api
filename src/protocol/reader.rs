@@ -114,10 +114,10 @@ impl Reader {
 
                 return Ok(Some(QueryResponse::Response(response)));
             } else if start.starts_with(b"notify") {
-                let status = self.receive_buffer.split_to(pos);
+                let scrambled_data = self.receive_buffer.split_off(self.last_cr_pos);
+                let (status, remaining) = scrambled_data.split_at(pos - self.last_cr_pos);
 
-                self.last_cr_pos = 0;
-                self.last_scan_pos = 0;
+                self.receive_buffer.extend_from_slice(remaining);
 
                 let status = std::str::from_utf8(&status[..status.len() - 2])
                     .map_err(QueryError::MalformedUTF8)?;
