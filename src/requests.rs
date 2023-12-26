@@ -185,8 +185,6 @@ impl QueryClient {
     }
 
     pub async fn version(&self) -> Result<Version, QueryError> {
-        println!("version");
-
         let command = Command::new("version");
         let mut response = self.send_command_decode(command).await?;
 
@@ -402,7 +400,7 @@ impl QueryClient {
         &self,
         name: &str,
         properties: Vec<ChannelProperty<'_>>
-    ) -> Result<(), QueryError> {
+    ) -> Result<u32, QueryError> {
         let mut command = Command::new("channelcreate")
             .arg("channel_name", name)?;
 
@@ -412,9 +410,9 @@ impl QueryClient {
             command = command.arg(key, value)?;
         }
 
-        self.send_command(command).await?;
+        let mut response = self.send_command_decode(command).await?;
 
-        Ok(())
+        response.get("cid")
     }
 
     pub async fn client_move(
