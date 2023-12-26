@@ -3,10 +3,10 @@ macro_rules! property {
         PropertyType::Str($value_name)
     };
     ($value_name:ident, bool) => {
-        PropertyType::Bool($value_name)
+        PropertyType::Bool(*$value_name)
     };
     ($value_name:ident, u32) => {
-        PropertyType::Int($value_name)
+        PropertyType::Int(*$value_name)
     };
 }
 
@@ -28,18 +28,21 @@ macro_rules! properties {
     }) => {
         #[allow(dead_code)]
         pub enum $type<'a> {
-            $($name($crate::macros::property_type!($ty))),*
+            $($name($crate::macros::property_type!($ty))),*,
+            Custom(&'a str, PropertyType<'a>),
         }
 
         #[allow(dead_code)]
         impl<'a> $type<'a> {
-            pub fn contents(self) -> (&'static str, PropertyType<'a>) {
+            pub fn contents(&'a self) -> (&'a str, PropertyType<'a>) {
                 let name = match self {
                     $( $type::$name { .. } => $value, )*
+                    $type::Custom(name, _) => name,
                 };
 
                 let value = match self {
                     $( $type::$name(value) => $crate::macros::property!(value, $ty), )*
+                    $type::Custom(_, value) => value.clone(),
                 };
 
                 (name, value)

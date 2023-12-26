@@ -1,6 +1,7 @@
 use crate::macros::properties;
 use crate::parser::Encode;
 
+#[derive(Clone)]
 pub enum PropertyType<'a> {
     Str(&'a str),
     Int(u32),
@@ -19,7 +20,7 @@ impl Encode for PropertyType<'_> {
 
 properties! {
     ChannelProperty {
-        Cpid: u32 = "cpid",
+        ParentId: u32 = "cpid",
 
         Name: str = "channel_name",
         Topic: str = "channel_topic",

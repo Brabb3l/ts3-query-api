@@ -449,7 +449,7 @@ impl QueryClient {
     pub async fn channel_edit(
         &self,
         channel_id: u32,
-        properties: Vec<ChannelProperty<'_>>,
+        properties: &[ChannelProperty<'_>],
     ) -> Result<(), QueryError> {
         let mut command = Command::new("channeledit")
             .arg("cid", channel_id)?;
