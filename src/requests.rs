@@ -227,6 +227,30 @@ impl QueryClient {
         seconds_empty: bool,
         banners: bool,
     ) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
+        self.channel_list_dynamic_into(
+            topic,
+            flags,
+            voice,
+            limits,
+            icon,
+            seconds_empty,
+            banners,
+            Vec::new()
+        ).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn channel_list_dynamic_into(
+        &self,
+        topic: bool,
+        flags: bool,
+        voice: bool,
+        limits: bool,
+        icon: bool,
+        seconds_empty: bool,
+        banners: bool,
+        mut dst: Vec<ChannelListDynamicEntry>
+    ) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
         let command = Command::new("channellist")
             .flag("topic", topic)
             .flag("flags", flags)
@@ -235,8 +259,6 @@ impl QueryClient {
             .flag("icon", icon)
             .flag("secondsempty", seconds_empty)
             .flag("banners", banners);
-
-        let mut channels = Vec::new();
 
         for mut response in self.send_command_multi_decode(command).await? {
             let base = ChannelListEntry::from(&mut response)?;
@@ -248,7 +270,7 @@ impl QueryClient {
             let seconds_empty = if seconds_empty { Some(ChannelListSecondsEmptyEntry::from(&mut response)?) } else { None };
             let banners = if banners { Some(ChannelListBannerEntry::from(&mut response)?) } else { None };
 
-            channels.push(ChannelListDynamicEntry {
+            dst.push(ChannelListDynamicEntry {
                 base,
                 topic,
                 flags,
@@ -260,16 +282,30 @@ impl QueryClient {
             });
         }
 
-        Ok(channels)
+        Ok(dst)
     }
 
     pub async fn channel_list_full(&self) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
-        self.channel_list_dynamic(true, true, true, false, true, true, true).await
+        self.channel_list_full_into(Vec::new()).await
+    }
+
+    pub async fn channel_list_full_into(
+        &self,
+        dst: Vec<ChannelListDynamicEntry>
+    ) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
+        self.channel_list_dynamic_into(true, true, true, false, true, true, true, dst).await
     }
 
     pub async fn channel_list(&self) -> Result<Vec<ChannelListEntry>, QueryError> {
+        self.channel_list_into(Vec::new()).await
+    }
+
+    pub async fn channel_list_into(
+        &self,
+        dst: Vec<ChannelListEntry>
+    ) -> Result<Vec<ChannelListEntry>, QueryError> {
         let command = Command::new("channellist");
-        let mut channels = Vec::new();
+        let mut channels = dst;
 
         for mut response in self.send_command_multi_decode(command).await? {
             channels.push(ChannelListEntry::from(&mut response)?);
@@ -288,16 +324,22 @@ impl QueryClient {
     }
 
     pub async fn channel_info_multiple(&self, ids: &[u32]) -> Result<Vec<ChannelInfo>, QueryError> {
+        self.channel_info_multiple_into(ids, Vec::new()).await
+    }
+
+    pub async fn channel_info_multiple_into(
+        &self,
+        ids: &[u32],
+        mut dst: Vec<ChannelInfo>
+    ) -> Result<Vec<ChannelInfo>, QueryError> {
         let command = Command::new("channelinfo")
             .arg_list("cid", ids)?;
 
-        let mut channels = Vec::new();
-
         for mut response in self.send_command_multi_decode(command).await? {
-            channels.push(ChannelInfo::from(&mut response)?);
+            dst.push(ChannelInfo::from(&mut response)?);
         }
 
-        Ok(channels)
+        Ok(dst)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -314,6 +356,36 @@ impl QueryClient {
         icon: bool,
         badges: bool,
     ) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
+        self.client_list_dynamic_into(
+            uid,
+            away,
+            voice,
+            times,
+            groups,
+            info,
+            country,
+            ip,
+            icon,
+            badges,
+            Vec::new()
+        ).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn client_list_dynamic_into(
+        &self,
+        uid: bool,
+        away: bool,
+        voice: bool,
+        times: bool,
+        groups: bool,
+        info: bool,
+        country: bool,
+        ip: bool,
+        icon: bool,
+        badges: bool,
+        mut dst: Vec<ClientListDynamicEntry>
+    ) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
         let command = Command::new("clientlist")
             .flag("uid", uid)
             .flag("away", away)
@@ -325,8 +397,6 @@ impl QueryClient {
             .flag("ip", ip)
             .flag("icon", icon)
             .flag("badges", badges);
-
-        let mut clients = Vec::new();
 
         for mut response in self.send_command_multi_decode(command).await? {
             let base = ClientListEntry::from(&mut response)?;
@@ -341,7 +411,7 @@ impl QueryClient {
             let icon = if icon { Some(ClientListIconEntry::from(&mut response)?) } else { None };
             let badges = if badges { Some(ClientListBadgesEntry::from(&mut response)?) } else { None };
 
-            clients.push(ClientListDynamicEntry {
+            dst.push(ClientListDynamicEntry {
                 base,
                 uid,
                 away,
@@ -356,22 +426,35 @@ impl QueryClient {
             });
         }
 
-        Ok(clients)
+        Ok(dst)
     }
 
     pub async fn client_list_full(&self) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
-        self.client_list_dynamic(true, true, true, true, true, true, true, true, true, true).await
+        self.client_list_full_into(Vec::new()).await
+    }
+
+    pub async fn client_list_full_into(
+        &self,
+        dst: Vec<ClientListDynamicEntry>
+    ) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
+        self.client_list_dynamic_into(true, true, true, true, true, true, true, true, true, true, dst).await
     }
 
     pub async fn client_list(&self) -> Result<Vec<ClientListEntry>, QueryError> {
+        self.client_list_into(Vec::new()).await
+    }
+
+    pub async fn client_list_into(
+        &self,
+        mut dst: Vec<ClientListEntry>
+    ) -> Result<Vec<ClientListEntry>, QueryError> {
         let command = Command::new("clientlist");
-        let mut clients = Vec::new();
 
         for mut response in self.send_command_multi_decode(command).await? {
-            clients.push(ClientListEntry::from(&mut response)?);
+            dst.push(ClientListEntry::from(&mut response)?);
         }
 
-        Ok(clients)
+        Ok(dst)
     }
 
     pub async fn client_info(&self, id: u32) -> Result<ClientInfo, QueryError> {
@@ -384,22 +467,28 @@ impl QueryClient {
     }
 
     pub async fn client_info_multiple(&self, ids: &[u32]) -> Result<Vec<ClientInfo>, QueryError> {
+        self.client_info_multiple_into(ids, Vec::new()).await
+    }
+
+    pub async fn client_info_multiple_into(
+        &self,
+        ids: &[u32],
+        mut dst: Vec<ClientInfo>
+    ) -> Result<Vec<ClientInfo>, QueryError> {
         let command = Command::new("clientinfo")
             .arg_list("clid", ids)?;
 
-        let mut clients = Vec::new();
-
         for mut response in self.send_command_multi_decode(command).await? {
-            clients.push(ClientInfo::from(&mut response)?);
+            dst.push(ClientInfo::from(&mut response)?);
         }
 
-        Ok(clients)
+        Ok(dst)
     }
 
     pub async fn channel_create(
         &self,
         name: &str,
-        properties: Vec<ChannelProperty<'_>>
+        properties: &[ChannelProperty<'_>]
     ) -> Result<u32, QueryError> {
         let mut command = Command::new("channelcreate")
             .arg("channel_name", name)?;
