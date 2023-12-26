@@ -18,7 +18,7 @@ ts_response! {
         invoker_name("invokername"): Option<String>,
         invoker_uid("invokeruid"): Option<String>,
 
-        client_id("clid"): u32,
+        client_ids("clid"): Vec<u32>,
         reason_id("reasonid"): ReasonId,
         reason_msg("reasonmsg"): Option<String>,
 
