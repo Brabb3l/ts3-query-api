@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 use log::warn;
-use crate::error::QueryError;
+use crate::error::ParseError;
 use crate::parser::escape::unescape;
 
 #[derive(Debug)]
@@ -12,11 +12,11 @@ pub struct CommandResponse {
 
 // getters
 impl CommandResponse {
-    pub fn get<D: Decode + Default>(&mut self, key: &str) -> Result<D, QueryError> {
+    pub fn get<D: Decode + Default>(&mut self, key: &str) -> Result<D, ParseError> {
         self.get_or(key, D::default)
     }
 
-    pub fn get_or<D: Decode, F: FnOnce() -> D>(&mut self, key: &str, default: F) -> Result<D, QueryError> {
+    pub fn get_or<D: Decode, F: FnOnce() -> D>(&mut self, key: &str, default: F) -> Result<D, ParseError> {
         match self.args.remove(key) {
             Some(val) => D::decode(key, val),
             None => Ok(default()),
@@ -26,13 +26,13 @@ impl CommandResponse {
 
 // decoder
 impl CommandResponse {
-    pub fn decode(buf: &str, parse_name: bool) -> Result<Self, QueryError> {
+    pub fn decode(buf: &str, parse_name: bool) -> Result<Self, ParseError> {
         let mut parts = buf.split(' ');
 
         let name = if parse_name {
             Some(
                 parts.next()
-                    .ok_or_else(|| QueryError::MissingName { response: buf.to_string() })?
+                    .ok_or_else(|| ParseError::MissingName { response: buf.to_string() })?
                     .to_string()
             )
         } else {
@@ -44,7 +44,7 @@ impl CommandResponse {
         for arg in parts {
             let mut parts = arg.splitn(2, '=');
             let key = parts.next()
-                .ok_or_else(|| QueryError::MissingKey {
+                .ok_or_else(|| ParseError::MissingKey {
                     response: buf.to_string(),
                     key: arg.to_string(),
                 })?;
@@ -57,13 +57,13 @@ impl CommandResponse {
                     for arg in arg.split('|') {
                         let mut parts = arg.splitn(2, '=');
                         let sub_key = parts.next()
-                            .ok_or_else(|| QueryError::MissingKey {
+                            .ok_or_else(|| ParseError::MissingKey {
                                 response: buf.to_string(),
                                 key: arg.to_string(),
                             })?;
 
                         if sub_key != key {
-                            return Err(QueryError::InvalidArgument {
+                            return Err(ParseError::InvalidArgument {
                                 name: sub_key.to_string(),
                                 message: format!("'{}' in multi-arg response does not match the first key '{}'", sub_key, key),
                             });
@@ -78,7 +78,7 @@ impl CommandResponse {
 
                             unescape(val, &mut buf)?;
                         } else {
-                            return Err(QueryError::InvalidArgument {
+                            return Err(ParseError::InvalidArgument {
                                 name: sub_key.to_string(),
                                 message: "Missing value".to_string(),
                             });
@@ -103,7 +103,7 @@ impl CommandResponse {
         })
     }
 
-    pub fn decode_multi(buf: &str) -> Result<Vec<Self>, QueryError> {
+    pub fn decode_multi(buf: &str) -> Result<Vec<Self>, ParseError> {
         let mut responses = Vec::new();
 
         for buf in buf.split('|') {
@@ -150,12 +150,12 @@ impl Drop for CommandResponse {
 }
 
 pub trait Decode: Sized {
-    fn decode(key: &str, value: String) -> Result<Self, QueryError>;
+    fn decode(key: &str, value: String) -> Result<Self, ParseError>;
 }
 
 // placeholder
 impl<T : Decode> Decode for Option<T> {
-    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         if value.is_empty() {
             return Ok(None);
         }
@@ -165,17 +165,17 @@ impl<T : Decode> Decode for Option<T> {
 }
 
 impl Decode for String {
-    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         Ok(value)
     }
 }
 
 impl Decode for bool {
-    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         match value.as_str() {
             "1" => Ok(true),
             "0" => Ok(false),
-            _ => Err(QueryError::ArgTypeError {
+            _ => Err(ParseError::ArgTypeError {
                 key: _key.to_string(),
                 value,
                 expected_type: "boolean".to_string(),
@@ -186,7 +186,7 @@ impl Decode for bool {
 }
 
 impl<T: Decode> Decode for Vec<T> {
-    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         let mut list = Vec::new();
 
         for val in value.split(',') {
@@ -201,9 +201,9 @@ macro_rules! impl_decode {
     ($($type:ident),*) => {
         $(
             impl Decode for $type {
-                fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+                fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
                     value.parse::<$type>()
-                        .map_err(|e| QueryError::ArgTypeError {
+                        .map_err(|e| ParseError::ArgTypeError {
                             key: _key.to_string(),
                             value,
                             expected_type: stringify!($type).to_string(),

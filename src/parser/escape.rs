@@ -1,4 +1,4 @@
-use crate::error::QueryError;
+use crate::error::ParseError;
 
 pub fn escape(src: &str, dst: &mut String) {
     for c in src.chars() {
@@ -19,7 +19,7 @@ pub fn escape(src: &str, dst: &mut String) {
     }
 }
 
-pub fn unescape(src: &str, dst: &mut String) -> Result<(), QueryError> {
+pub fn unescape(src: &str, dst: &mut String) -> Result<(), ParseError> {
     let mut escape = false;
 
     for c in src.chars() {
@@ -51,7 +51,7 @@ pub fn unescape(src: &str, dst: &mut String) -> Result<(), QueryError> {
     }
 
     if escape {
-        Err(QueryError::MalformedEscapeSequence { src: dst.to_string() })
+        Err(ParseError::MalformedEscapeSequence { src: dst.to_string() })
     } else {
         Ok(())
     }
@@ -139,7 +139,7 @@ mod test {
     fn test_escape_error() {
         let mut dst = String::new();
 
-        assert!(matches!(unescape("test\\", &mut dst), Err(QueryError::MalformedEscapeSequence { .. })));
+        assert!(matches!(unescape("test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
     }
 
     #[test]
@@ -220,6 +220,6 @@ mod test {
     fn test_unescape_error() {
         let mut dst = String::new();
 
-        assert!(matches!(unescape("test\\", &mut dst), Err(QueryError::MalformedEscapeSequence { .. })));
+        assert!(matches!(unescape("test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
     }
 }

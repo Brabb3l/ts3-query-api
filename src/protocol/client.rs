@@ -55,12 +55,13 @@ impl QueryClient {
 
     pub async fn send_command_decode(&self, command: Command) -> Result<CommandResponse, QueryError> {
         self.send_command(command).await
-            .map(|v| CommandResponse::decode(&v, false))?
+            .map(|v| CommandResponse::decode(&v, false)
+                .map_err(QueryError::ParseError))?
     }
 
     pub async fn send_command_multi_decode(&self, command: Command) -> Result<Vec<CommandResponse>, QueryError> {
         match self.send_command(command).await {
-            Ok(v) => CommandResponse::decode_multi(&v),
+            Ok(v) => CommandResponse::decode_multi(&v).map_err(QueryError::ParseError),
             Err(QueryError::QueryError { id, message, response }) => {
                 if id == 1281 {
                     Ok(Vec::new())

@@ -1,62 +1,63 @@
-use std::error::Error;
-use std::fmt::{Display, Formatter};
+use thiserror::Error;
 use crate::parser::CommandResponse;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
+pub enum ParseError {
+    #[error("Format error: {0}")]
+    FormatError(std::fmt::Error),
+
+    #[error("Malformed escape sequence: {src}")]
+    MalformedEscapeSequence { src: String },
+
+    #[error("Missing name: {response}")]
+    MissingName { response: String },
+    #[error("Missing key: {key} in {response}")]
+    MissingKey { response: String, key: String },
+
+    #[error("Missing argument: {key}")]
+    MissingArg { key: String },
+    #[error("Argument type error: {key}={value} (expected {expected_type}, got {error})")]
+    ArgTypeError { key: String, value: String, expected_type: String, error: String },
+
+    #[error("Unknown key: {key} in {response}")]
+    UnknownKey { response: String, key: String },
+    #[error("Unknown event: {event} in {response}")]
+    UnknownEvent { response: String, event: String },
+    #[error("Invalid argument: {name} ({message})")]
+    InvalidArgument { name: String, message: String },
+
+    #[error("Unknown permission: {id}")]
+    UnknownPermission { id: String },
+
+    #[error("Invalid integer: {0}")]
+    InvalidInteger(#[from] std::num::ParseIntError),
+    #[error("Invalid boolean: {0}")]
+    InvalidBoolean(#[from] std::str::ParseBoolError),
+    #[error("Invalid value: {0}")]
+    InvalidValue(String),
+}
+
+#[derive(Error, Debug)]
 pub enum QueryError {
+    #[error("Connection closed")]
     ConnectionClosed,
 
     // wrapper
+    #[error("Malformed UTF-8: {0}")]
     MalformedUTF8(std::str::Utf8Error),
+    #[error("Connection failed: {0}")]
     ConnectionFailed(std::io::Error),
+    #[error("Read error: {0}")]
     ReadError(std::io::Error),
+    #[error("Write error: {0}")]
     WriteError(std::io::Error),
-    FormatError(std::fmt::Error),
-
-    // response parser
-    MissingName { response: String },
-    MissingKey { response: String, key: String },
-
-    // response getters
-    MissingArg { key: String },
-    ArgTypeError { key: String, value: String, expected_type: String, error: String },
+    #[error("Parse error: {0}")]
+    ParseError(#[from] ParseError),
 
     // other
-    MalformedEscapeSequence { src: String },
+    #[error("Not a TS3 server")]
     NotTS3Server,
-    UnknownKey { response: String, key: String },
-    UnknownEvent { response: String, event: String },
-    InvalidArgument { name: String, message: String },
 
+    #[error("Query error: {message} ({id}) in {response}")]
     QueryError { id: i32, message: String, response: CommandResponse }
-}
-
-impl Error for QueryError {}
-
-impl Display for QueryError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            QueryError::ConnectionClosed => write!(f, "Connection closed"),
-
-            QueryError::MalformedUTF8(e) => write!(f, "Malformed UTF-8: {}", e),
-            QueryError::ConnectionFailed(e) => write!(f, "Connection failed: {}", e),
-            QueryError::ReadError(e) => write!(f, "Read error: {}", e),
-            QueryError::WriteError(e) => write!(f, "Write error: {}", e),
-            QueryError::FormatError(e) => write!(f, "Format error: {}", e),
-
-            QueryError::MissingName { response } => write!(f, "Missing name: {}", response),
-            QueryError::MissingKey { response, key } => write!(f, "Missing key: {} in {}", key, response),
-
-            QueryError::MissingArg { key } => write!(f, "Missing argument: {}", key),
-            QueryError::ArgTypeError { key, value, expected_type, error } => write!(f, "Argument type error: {}={} (expected {}, got {})", key, value, expected_type, error),
-
-            QueryError::MalformedEscapeSequence { src } => write!(f, "Malformed escape sequence: {}", src),
-            QueryError::NotTS3Server => write!(f, "Not a TS3 server"),
-            QueryError::UnknownKey { response, key } => write!(f, "Unknown key: {} in {}", key, response),
-            QueryError::UnknownEvent { response, event } => write!(f, "Unknown event: {} in {}", event, response),
-            QueryError::InvalidArgument { name, message } => write!(f, "Invalid argument: {} ({})", name, message),
-
-            QueryError::QueryError { id, message, response } => write!(f, "Query error: {} ({}) in {}", message, id, response)
-        }
-    }
 }

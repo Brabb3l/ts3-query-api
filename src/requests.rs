@@ -1,4 +1,4 @@
-use crate::error::QueryError;
+use crate::error::{ParseError, QueryError};
 use crate::definitions::*;
 use crate::definitions::builder::{BanParams, ChannelListFlags, ClientListFlags};
 use crate::parser::{Command, CommandResponse};
@@ -162,7 +162,7 @@ impl QueryClient {
 
         let mut response = self.send_command_decode(command).await?;
 
-        ApiKey::from(&mut response)
+        Ok(ApiKey::from(&mut response)?)
     }
 
     pub async fn api_key_delete(
@@ -220,7 +220,7 @@ impl QueryClient {
 
         let mut response = self.send_command_decode(command).await?;
 
-        response.get("banid")
+        Ok(response.get("banid")?)
     }
 
     pub async fn ban_client(
@@ -340,11 +340,12 @@ impl QueryClient {
         channel_id: u32,
         permission: &Permission<'_>,
     ) -> Result<(), QueryError> {
-        let (id, value) = permission.contents();
+        let pair = permission.into_pair();
+
         let command = Command::new("channeladdperm")
             .arg("cid", channel_id)?
-            .arg("permsid", id)?
-            .arg("permvalue", value)?;
+            .arg("permsid", pair.id)?
+            .arg("permvalue", pair.value)?;
 
         self.send_command(command).await?;
 
@@ -367,7 +368,7 @@ impl QueryClient {
 
         let mut response = self.send_command_decode(command).await?;
 
-        response.get("cid")
+        Ok(response.get("cid")?)
     }
 
     pub async fn channel_delete(&self, channel_id: u32, force: bool) -> Result<(), QueryError> {
@@ -405,7 +406,7 @@ impl QueryClient {
 
         let mut response = self.send_command_decode(command).await?;
 
-        ChannelInfo::from(&mut response)
+        Ok(ChannelInfo::from(&mut response)?)
     }
 
     pub async fn channel_info_multiple(&self, ids: &[u32]) -> Result<Vec<ChannelInfo>, QueryError> {
@@ -513,7 +514,7 @@ impl QueryClient {
 
         let mut response = self.send_command_decode(command).await?;
 
-        ClientInfo::from(&mut response)
+        Ok(ClientInfo::from(&mut response)?)
     }
 
     pub async fn client_info_multiple(&self, ids: &[u32]) -> Result<Vec<ClientInfo>, QueryError> {
@@ -724,10 +725,10 @@ impl QueryClient {
                 Ok(())
             },
             _ => {
-                Err(QueryError::InvalidArgument {
+                Err(ParseError::InvalidArgument {
                     name: "event".to_owned(),
                     message: "Must be EventType::Channel or EventType::TextChannel".to_owned(),
-                })
+                }.into())
             }
         }
     }
@@ -765,13 +766,13 @@ impl QueryClient {
         let command = Command::new("version");
         let mut response = self.send_command_decode(command).await?;
 
-        Version::from(&mut response)
+        Ok(Version::from(&mut response)?)
     }
 
     pub async fn who_am_i(&self) -> Result<WhoAmI, QueryError> {
         let command = Command::new("whoami");
         let mut response = self.send_command_decode(command).await?;
 
-        WhoAmI::from(&mut response)
+        Ok(WhoAmI::from(&mut response)?)
     }
 }

@@ -1,8 +1,8 @@
-use crate::error::QueryError;
+use crate::error::ParseError;
 use crate::macros::permissions;
 use crate::parser::{CommandListBuilder, Encode, EncodeList};
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionValue {
     Int(i32),
     Bool(bool),
@@ -15,6 +15,11 @@ impl Encode for PermissionValue {
             PermissionValue::Bool(val) => val.encode(buf),
         }
     }
+}
+
+pub struct PermissionPair<'a> {
+    pub id: &'a str,
+    pub value: PermissionValue,
 }
 
 permissions! {
@@ -766,10 +771,72 @@ permissions! {
 }
 
 impl EncodeList for Permission<'_> {
-    fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), QueryError> {
-        let (id, value) = self.contents();
+    fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), ParseError> {
+        let pair = self.into_pair();
 
-        builder.add("permsid", id)?;
-        builder.add("permvalue", value)
+        builder.add("permsid", pair.id)?;
+        builder.add("permvalue", pair.value)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_contents() {
+        let perm = Permission::b_serverinstance_help_view(true);
+        let pair = perm.into_pair();
+
+        assert_eq!(pair.id, "b_serverinstance_help_view");
+        assert_eq!(pair.value, PermissionValue::Bool(true));
+    }
+
+    #[test]
+    fn test_parse_i32() {
+        let perm = Permission::parse("i_ft_quota_mb_upload_per_client", "123", true).unwrap();
+
+        assert_eq!(perm, Permission::i_ft_quota_mb_upload_per_client(123));
+    }
+
+    #[test]
+    fn test_parse_bool() {
+        let perm = Permission::parse("b_serverinstance_help_view", "true", true).unwrap();
+
+        assert_eq!(perm, Permission::b_serverinstance_help_view(true));
+    }
+
+    #[test]
+    fn test_parse_unknown_i32() {
+        let perm = Permission::parse("unknown", "123", false);
+
+        match perm {
+            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown", PermissionValue::Int(123))),
+            Err(e) => panic!("Expected Ok, got '{}'", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_unknown_bool() {
+        let perm = Permission::parse("unknown", "true", false);
+
+        match perm {
+            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown", PermissionValue::Bool(true))),
+            Err(e) => panic!("Expected Ok, got '{}'", e),
+        }
+    }
+
+    #[test]
+    fn test_parse_unknown_parse_error() {
+        let perm = Permission::parse("unknown", "hello", false);
+
+        assert!(perm.is_err());
+    }
+
+    #[test]
+    fn test_parse_unknown_error() {
+        let perm = Permission::parse("unknown", "true", true);
+
+        assert!(perm.is_err());
     }
 }

@@ -1,4 +1,4 @@
-use crate::error::QueryError;
+use crate::error::ParseError;
 use crate::macros::ts_response;
 use crate::parser::Decode;
 use super::*;
@@ -360,7 +360,7 @@ pub struct Badges {
 }
 
 impl Decode for Badges {
-    fn decode(_key: &str, value: String) -> Result<Self, QueryError> {
+    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         let mut overwolf = false;
         let mut badges = Vec::new();
 
@@ -374,12 +374,12 @@ impl Decode for Badges {
         for part in value.split(':') {
             let mut split = part.split('=');
 
-            let key = split.next().ok_or(QueryError::MissingKey {
+            let key = split.next().ok_or(ParseError::MissingKey {
                 response: value.to_owned(),
                 key: part.to_owned()
             })?;
 
-            let value = split.next().ok_or(QueryError::MissingKey {
+            let value = split.next().ok_or(ParseError::MissingKey {
                 response: value.to_owned(),
                 key: part.to_owned()
             })?;
@@ -392,7 +392,7 @@ impl Decode for Badges {
                     badges = value.split(',').map(|v| v.to_owned()).collect();
                 },
                 _ => {
-                    return Err(QueryError::UnknownKey {
+                    return Err(ParseError::UnknownKey {
                         response: value.to_owned(),
                         key: key.to_owned()
                     });

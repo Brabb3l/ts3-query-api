@@ -1,5 +1,5 @@
 use crate::definitions::*;
-use crate::error::QueryError;
+use crate::error::ParseError;
 use crate::parser::CommandResponse;
 
 #[derive(Debug)]
@@ -19,8 +19,8 @@ pub enum Event {
 }
 
 impl Event {
-    pub fn from(mut response: CommandResponse) -> Result<Self, QueryError> {
-        let event_name = response.name.as_ref().ok_or_else(|| QueryError::MissingName {
+    pub fn from(mut response: CommandResponse) -> Result<Self, ParseError> {
+        let event_name = response.name.as_ref().ok_or_else(|| ParseError::MissingName {
             response: response.to_string()
         })?;
 
@@ -37,7 +37,7 @@ impl Event {
             "notifychannelpasswordchanged" => Event::ChannelPasswordChanged(ChannelPasswordChangeEvent::from(&mut response)?),
             "notifyserveredited" => Event::ServerEdited(ServerEditEvent::from(&mut response)?),
             "notifytokenused" => Event::TokenUsed(TokenUseEvent::from(&mut response)?),
-            _ => return Err(QueryError::UnknownEvent {
+            _ => return Err(ParseError::UnknownEvent {
                 response: response.to_string(),
                 event: event_name.clone()
             })

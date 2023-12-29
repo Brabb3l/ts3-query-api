@@ -1,5 +1,5 @@
 use std::fmt::{Arguments, Display, Write};
-use crate::error::QueryError;
+use crate::error::ParseError;
 use crate::parser::escape::escape;
 
 pub struct Command {
@@ -29,7 +29,7 @@ impl Command {
         self
     }
 
-    pub fn arg_opt<T: Encode>(self, key: &str, val: Option<T>) -> Result<Self, QueryError> {
+    pub fn arg_opt<T: Encode>(self, key: &str, val: Option<T>) -> Result<Self, ParseError> {
         if let Some(val) = val {
             self.arg(key, val)
         } else {
@@ -37,23 +37,23 @@ impl Command {
         }
     }
 
-    pub fn arg<T: Encode>(self, key: &str, val: T) -> Result<Self, QueryError> {
+    pub fn arg<T: Encode>(self, key: &str, val: T) -> Result<Self, ParseError> {
         self.arg_ref(key, &val)
     }
 
-    pub fn arg_ref<T: Encode>(mut self, key: &str, val: &T) -> Result<Self, QueryError> {
+    pub fn arg_ref<T: Encode>(mut self, key: &str, val: &T) -> Result<Self, ParseError> {
         if self.prepend_space {
             self.buf.push(' ');
         }
 
         self.buf.push_str(key);
         self.buf.push('=');
-        val.encode(&mut self.buf).map_err(QueryError::FormatError)?;
+        val.encode(&mut self.buf).map_err(ParseError::FormatError)?;
 
         Ok(self)
     }
 
-    pub fn arg_list<T: Encode>(mut self, key: &str, val: &[T]) -> Result<Self, QueryError> {
+    pub fn arg_list<T: Encode>(mut self, key: &str, val: &[T]) -> Result<Self, ParseError> {
         let Some(first) = val.first() else {
             return Ok(self);
         };
@@ -69,7 +69,7 @@ impl Command {
         Ok(self)
     }
 
-    pub fn arg_multi_list<T: EncodeList>(mut self, val: &[T]) -> Result<Self, QueryError> {
+    pub fn arg_multi_list<T: EncodeList>(mut self, val: &[T]) -> Result<Self, ParseError> {
         if self.prepend_space {
             self.buf.push(' ');
         }
@@ -188,11 +188,11 @@ impl<'a> CommandListBuilder<'a> {
         }
     }
 
-    pub fn add<T: Encode>(&mut self, key: &str, val: T) -> Result<(), QueryError> {
+    pub fn add<T: Encode>(&mut self, key: &str, val: T) -> Result<(), ParseError> {
         self.add_ref(key, &val)
     }
 
-    pub fn add_ref<T: Encode>(&mut self, key: &str, val: &T) -> Result<(), QueryError> {
+    pub fn add_ref<T: Encode>(&mut self, key: &str, val: &T) -> Result<(), ParseError> {
         if self.prepend_space {
             self.buf.push(' ');
         } else {
@@ -201,14 +201,14 @@ impl<'a> CommandListBuilder<'a> {
 
         self.buf.push_str(key);
         self.buf.push('=');
-        val.encode(self.buf).map_err(QueryError::FormatError)?;
+        val.encode(self.buf).map_err(ParseError::FormatError)?;
 
         Ok(())
     }
 }
 
 pub trait EncodeList {
-     fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), QueryError>;
+     fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), ParseError>;
 }
 
 #[cfg(test)]
@@ -221,7 +221,7 @@ mod test {
     }
 
     impl EncodeList for Test {
-        fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), QueryError> {
+        fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), ParseError> {
             builder.add("key", self.key)?;
             builder.add("key2", self.key2)
         }

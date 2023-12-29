@@ -75,6 +75,7 @@ macro_rules! permissions {
     }) => {
         #[allow(non_camel_case_types)]
         #[allow(dead_code)]
+        #[derive(Debug, PartialEq, Eq)]
         pub enum $type<'a> {
             $($name($crate::macros::permission_value!($ty))),*,
             Custom(&'a str, PermissionValue),
@@ -82,10 +83,29 @@ macro_rules! permissions {
 
         #[allow(dead_code)]
         impl<'a> $type<'a> {
-            pub fn contents(&'a self) -> (&'a str, PermissionValue) {
-                let name = match self {
+            pub fn parse(id: &'a str, value: &str, error_on_unknown: bool) -> Result<$type<'a>, $crate::error::ParseError> {
+                match id {
+                    $( stringify!($name) => Ok($type::$name(value.parse()?)), )*
+                    _ => if error_on_unknown {
+                        Err($crate::error::ParseError::UnknownPermission {
+                            id: id.to_string(),
+                        })
+                    } else {
+                        if let Ok(value) = value.parse::<i32>() {
+                            Ok($type::Custom(id, PermissionValue::Int(value)))
+                        } else if let Ok(value) = value.parse::<bool>() {
+                            Ok($type::Custom(id, PermissionValue::Bool(value)))
+                        } else {
+                            Err($crate::error::ParseError::InvalidValue(id.to_string()))
+                        }
+                    }
+                }
+            }
+
+            pub fn into_pair(&'a self) -> PermissionPair<'a> {
+                let id = match self {
                     $( $type::$name { .. } => stringify!($name), )*
-                    $type::Custom(name, _) => name,
+                    $type::Custom(id, _) => id,
                 };
 
                 let value = match self {
@@ -93,7 +113,10 @@ macro_rules! permissions {
                     $type::Custom(_, value) => value.clone(),
                 };
 
-                (name, value)
+                PermissionPair {
+                    id,
+                    value,
+                }
             }
         }
     }
@@ -128,7 +151,7 @@ macro_rules! ts_response {
         }
 
         impl $type {
-            pub fn from(response: &mut $crate::parser::CommandResponse) -> Result<Self, $crate::error::QueryError> {
+            pub fn from(response: &mut $crate::parser::CommandResponse) -> Result<Self, $crate::error::ParseError> {
                 Ok(Self {
                     $($field: $crate::macros::ts_response_getter!(
                         response,
@@ -155,7 +178,7 @@ macro_rules! ts_enum {
         }
 
         impl crate::parser::Decode for $type {
-            fn decode(_key: &str, value: String) -> Result<Self, $crate::error::QueryError> {
+            fn decode(_key: &str, value: String) -> Result<Self, $crate::error::ParseError> {
                 match value.as_str() {
                     $( stringify!($value) => Ok($type::$name), )*
                     _ => Ok($type::Unknown(value)),
