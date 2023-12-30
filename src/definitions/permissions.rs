@@ -832,7 +832,7 @@ mod test {
         let perm = Permission::parse("unknown", 1, false);
 
         match perm {
-            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown".to_owned(), PermissionValue::Bool(true))),
+            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown".to_owned(), PermissionValue::Int(1))),
             Err(e) => panic!("Expected Ok, got '{}'", e),
         }
     }
