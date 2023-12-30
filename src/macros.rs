@@ -27,6 +27,7 @@ macro_rules! properties {
         $($name:ident: $ty:ident = $value:expr),* $(,)?
     }) => {
         #[allow(dead_code)]
+        #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum $type<'a> {
             $($name($crate::macros::property_type!($ty))),*,
             Custom(&'a str, PropertyType<'a>),
@@ -88,7 +89,7 @@ macro_rules! permissions {
     }) => {
         #[allow(non_camel_case_types)]
         #[allow(dead_code)]
-        #[derive(Debug, PartialEq, Eq)]
+        #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum $type {
             $($name($crate::macros::permission_type!($ty))),*,
             Custom(String, PermissionValue),
@@ -275,7 +276,7 @@ macro_rules! ts_response {
             $($field:ident$(($opt_name:expr))?: $field_type:ident $(<$generics:tt $(, $sg:tt)*>)? $(= $default:expr)?),* $(,)?
         }
     ) => {
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         pub struct $type $(<$lifetime>)? {
             $(pub $field: crate::macros::decode_type!($field_type $(<$generics$(, $sg)*>)?)),*
         }
@@ -304,7 +305,7 @@ macro_rules! ts_enum {
         }
     ) => {
         #[allow(dead_code)]
-        #[derive(Debug)]
+        #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum $type {
             $($name),*,
             Unknown(String),
@@ -363,16 +364,12 @@ macro_rules! opt_builder {
             $($name:ident($func_name:ident): $field_type:ident),* $(,)?
         }
     ) => {
-        #[derive(Debug, Default)]
+        #[derive(Debug, Default, Clone)]
         pub struct $type {
             $(pub $name: Option<$field_type>),*
         }
 
         impl $type {
-            pub fn new() -> Self {
-                Self::default()
-            }
-
             $(
                 crate::macros::opt_builder_func!($func_name, $name, $field_type);
             )*
@@ -386,16 +383,12 @@ macro_rules! flag_builder {
             $($name:ident($func_name:ident)),* $(,)?
         }
     ) => {
-        #[derive(Debug, Default)]
+        #[derive(Debug, Default, Clone)]
         pub struct $type {
             $(pub $name: bool),*
         }
 
         impl $type {
-            pub fn new() -> Self {
-                Self::default()
-            }
-
             pub fn all() -> Self {
                 Self {
                     $($name: true),*

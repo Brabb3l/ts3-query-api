@@ -47,7 +47,7 @@ impl QueryClient {
         let mut decoder = Decoder::new(response.content());
 
         decoder.decode()
-            .map_err(|e| QueryError::ParseError(e.into()))
+            .map_err(QueryError::ParseError)
     }
 
     pub async fn send_command_into<I: DecodeInto>(
@@ -59,7 +59,7 @@ impl QueryClient {
         let mut decoder = Decoder::new(response.content());
 
         dst.decode_into(&mut decoder)
-            .map_err(|e| QueryError::ParseError(e.into()))
+            .map_err(QueryError::ParseError)
     }
 
     pub async fn send_command_custom_into<F, T, I: DecodeCustomInto<T>>(
@@ -75,7 +75,7 @@ impl QueryClient {
         let mut decoder = Decoder::new(response.content());
 
         dst.decode_into(&mut decoder, gen)
-            .map_err(|e| QueryError::ParseError(e.into()))
+            .map_err(QueryError::ParseError)
     }
 
     pub async fn wait_for_event(&self) -> Result<Event, QueryError> {
@@ -105,7 +105,7 @@ impl QueryClient {
 
         let status = Decoder::new(response.status())
             .decode_with_name::<Status>()
-            .map_err(|e| QueryError::ParseError(e.into()))?;
+            .map_err(QueryError::ParseError)?;
 
         if status.id == 0 {
             Ok(response)

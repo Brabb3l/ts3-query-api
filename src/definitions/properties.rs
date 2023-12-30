@@ -1,7 +1,7 @@
 use crate::macros::properties;
 use crate::parser::Encode;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertyType<'a> {
     Str(&'a str),
     Int(u32),

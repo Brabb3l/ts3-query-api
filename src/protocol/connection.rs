@@ -65,7 +65,7 @@ impl Connection {
 
             let status = Decoder::new(status.status())
                 .decode_with_name::<Status>()
-                .map_err(|e| QueryError::ParseError(e.into()))?;
+                .map_err(QueryError::ParseError)?;
 
             if status.id != 0 {
                 return Err(QueryError::QueryError {

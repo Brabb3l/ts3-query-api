@@ -382,7 +382,7 @@ ts_response! {
 
 // custom decoding
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Badges {
     pub overwolf: bool,
     pub badges: Vec<String>
