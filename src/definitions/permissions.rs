@@ -788,7 +788,90 @@ impl EncodeList for Permission {
     }
 }
 
+#[cfg(feature = "serde")]
+use serde::ser::SerializeStruct;
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for Permission {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("Permission", 2)?;
+        let pair = self.into_pair();
+
+        state.serialize_field("id", pair.id)?;
+
+        let value = match pair.value {
+            PermissionValue::Int(val) => val,
+            PermissionValue::Bool(val) => if val { 1 } else { 0 }
+        };
+
+        state.serialize_field("value", &value)?;
+
+        state.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Permission {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Permission, D::Error> {
+        #[derive(serde::Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Id,
+            Value,
+        }
+
+        struct PermissionVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for PermissionVisitor {
+            type Value = Permission;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Permission")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de> {
+                let id = seq.next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements"))?;
+                let value = seq.next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements"))?;
+
+                Permission::parse(id, value, true).map_err(serde::de::Error::custom)
+            }
+
+            fn visit_map<V: serde::de::MapAccess<'de>>(self, mut map: V) -> Result<Self::Value, V::Error> {
+                let mut id: Option<String> = None;
+                let mut value: Option<i32> = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Id => {
+                            if id.is_some() {
+                                return Err(serde::de::Error::duplicate_field("id"));
+                            }
+
+                            id = Some(map.next_value()?);
+                        }
+                        Field::Value => {
+                            if value.is_some() {
+                                return Err(serde::de::Error::duplicate_field("value"));
+                            }
+
+                            value = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                let id = id.ok_or_else(|| serde::de::Error::missing_field("id"))?;
+                let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
+
+                Permission::parse(&id, value, true).map_err(serde::de::Error::custom)
+            }
+        }
+
+        const FIELDS: &[&str] = &["id", "value"];
+        deserializer.deserialize_struct("Permission", FIELDS, PermissionVisitor)
+    }
+}
 
 #[cfg(test)]
 mod test {
