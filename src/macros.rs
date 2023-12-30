@@ -52,20 +52,33 @@ macro_rules! properties {
 }
 
 macro_rules! permission {
-    ($value_name:ident, bool) => {
+    ($value_name:expr, bool) => {
         PermissionValue::Bool(*$value_name)
     };
-    ($value_name:ident, i32) => {
+    ($value_name:expr, i32) => {
         PermissionValue::Int(*$value_name)
     };
 }
 
-macro_rules! permission_value {
+macro_rules! permission_type {
     (bool) => {
         bool
     };
     (i32) => {
         i32
+    }
+}
+
+macro_rules! permission_parse {
+    ($value:expr, bool) => {
+        match $value {
+            0 => false,
+            1 => true,
+            _ => return Err($crate::error::ParseError::InvalidValue(std::borrow::Cow::from($value.to_string()))),
+        }
+    };
+    ($value:expr, i32) => {
+        $value
     }
 }
 
@@ -76,33 +89,27 @@ macro_rules! permissions {
         #[allow(non_camel_case_types)]
         #[allow(dead_code)]
         #[derive(Debug, PartialEq, Eq)]
-        pub enum $type<'a> {
-            $($name($crate::macros::permission_value!($ty))),*,
-            Custom(std::borrow::Cow<'a, str>, PermissionValue),
+        pub enum $type {
+            $($name($crate::macros::permission_type!($ty))),*,
+            Custom(String, PermissionValue),
         }
 
         #[allow(dead_code)]
-        impl<'a> $type<'a> {
-            pub fn parse(id: std::borrow::Cow<'a, str>, value: &str, error_on_unknown: bool) -> Result<$type<'a>, $crate::error::ParseError> {
-                match id.as_ref() {
-                    $( stringify!($name) => Ok($type::$name(value.parse()?)), )*
+        impl $type {
+            pub fn parse(id: &str, value: i32, error_on_unknown: bool) -> Result<$type, $crate::error::ParseError> {
+                match id {
+                    $( stringify!($name) => Ok($type::$name($crate::macros::permission_parse!(value, $ty))), )*
                     _ => if error_on_unknown {
                         Err($crate::error::ParseError::UnknownPermission {
                             id: id.to_string(),
                         })
                     } else {
-                        if let Ok(value) = value.parse::<i32>() {
-                            Ok($type::Custom(id, PermissionValue::Int(value)))
-                        } else if let Ok(value) = value.parse::<bool>() {
-                            Ok($type::Custom(id, PermissionValue::Bool(value)))
-                        } else {
-                            Err($crate::error::ParseError::InvalidValue(std::borrow::Cow::from(id.to_string())))
-                        }
+                        Ok($type::Custom(id.to_owned(), PermissionValue::Int(value)))
                     }
                 }
             }
 
-            pub fn into_pair(&'a self) -> PermissionPair<'a> {
+            pub fn into_pair(&self) -> PermissionPair {
                 let id = match self {
                     $( $type::$name { .. } => stringify!($name), )*
                     $type::Custom(id, _) => id,
@@ -117,6 +124,94 @@ macro_rules! permissions {
                     id,
                     value,
                 }
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        use serde::ser::SerializeStruct;
+
+        #[cfg(feature = "serde")]
+        impl serde::Serialize for Permission {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                let mut state = serializer.serialize_struct("Permission", 2)?;
+                let pair = self.into_pair();
+
+                state.serialize_field("id", pair.id)?;
+
+                let value = match pair.value {
+                    PermissionValue::Int(val) => val,
+                    PermissionValue::Bool(val) => if val { 1 } else { 0 }
+                };
+
+                state.serialize_field("value", &value)?;
+
+                state.end()
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        impl<'de> serde::Deserialize<'de> for $type {
+            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                #[derive(serde::Deserialize)]
+                #[serde(field_identifier, rename_all = "lowercase")]
+                enum Field {
+                    Id,
+                    Value,
+                }
+
+                struct PermissionVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for PermissionVisitor {
+                    type Value = Permission;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        formatter.write_str("struct Permission")
+                    }
+
+                    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de> {
+                        let id = seq.next_element()?
+                            .ok_or_else(|| serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements"))?;
+                        let value = seq.next_element()?
+                            .ok_or_else(|| serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements"))?;
+
+                        $type::parse(id, value, true).map_err(serde::de::Error::custom)
+                    }
+
+                    fn visit_map<V: serde::de::MapAccess<'de>>(self, mut map: V) -> Result<Self::Value, V::Error> {
+                        let mut id: Option<&str> = None;
+                        let mut value: Option<i32> = None;
+
+                        while let Some(key) = map.next_key()? {
+                            match key {
+                                Field::Id => {
+                                    if id.is_some() {
+                                        return Err(serde::de::Error::duplicate_field("id"));
+                                    }
+
+                                    id = Some(map.next_value()?);
+                                }
+                                Field::Value => {
+                                    if value.is_some() {
+                                        return Err(serde::de::Error::duplicate_field("value"));
+                                    }
+
+                                    value = Some(map.next_value()?);
+                                }
+                                _ => {
+                                    let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                                }
+                            }
+                        }
+
+                        let id = id.ok_or_else(|| serde::de::Error::missing_field("id"))?;
+                        let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
+
+                        $type::parse(id, value, true).map_err(serde::de::Error::custom)
+                    }
+                }
+
+                const FIELDS: &[&str] = &["id", "value"];
+                deserializer.deserialize_struct("Permission", FIELDS, PermissionVisitor)
             }
         }
     }
@@ -322,7 +417,8 @@ pub(crate) use property_type;
 pub(crate) use properties;
 
 pub(crate) use permission;
-pub(crate) use permission_value;
+pub(crate) use permission_type;
+pub(crate) use permission_parse;
 pub(crate) use permissions;
 
 pub(crate) use ts_response;

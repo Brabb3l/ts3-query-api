@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use crate::error::ParseError;
 use crate::macros::permissions;
 use crate::parser::{CommandListBuilder, Decode, Decoder, Encode, EncodeList};
@@ -771,16 +770,16 @@ permissions! {
     }
 }
 
-impl<'a> Decode for Permission<'a> {
-    fn decode(decoder: &mut Decoder) -> Result<Permission<'a>, ParseError> {
+impl Decode for Permission {
+    fn decode(decoder: &mut Decoder) -> Result<Permission, ParseError> {
         let id: String = decoder.advance_or_err("permsid")?;
-        let value: String = decoder.advance_or_err("permvalue")?;
+        let value: i32 = decoder.advance_or_err("permvalue")?;
 
-        Ok(Self::parse(Cow::from(id), &value, false).unwrap())
+        Ok(Self::parse(&id, value, false).unwrap())
     }
 }
 
-impl EncodeList for Permission<'_> {
+impl EncodeList for Permission {
     fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), ParseError> {
         let pair = self.into_pair();
 
@@ -788,6 +787,8 @@ impl EncodeList for Permission<'_> {
         builder.add("permvalue", pair.value)
     }
 }
+
+
 
 #[cfg(test)]
 mod test {
@@ -804,48 +805,41 @@ mod test {
 
     #[test]
     fn test_parse_i32() {
-        let perm = Permission::parse(Cow::from("i_ft_quota_mb_upload_per_client"), "123", true).unwrap();
+        let perm = Permission::parse("i_ft_quota_mb_upload_per_client", 123, true).unwrap();
 
         assert_eq!(perm, Permission::i_ft_quota_mb_upload_per_client(123));
     }
 
     #[test]
     fn test_parse_bool() {
-        let perm = Permission::parse(Cow::from("b_serverinstance_help_view"), "true", true).unwrap();
+        let perm = Permission::parse("b_serverinstance_help_view", 1, true).unwrap();
 
         assert_eq!(perm, Permission::b_serverinstance_help_view(true));
     }
 
     #[test]
     fn test_parse_unknown_i32() {
-        let perm = Permission::parse(Cow::from("unknown"), "123", false);
+        let perm = Permission::parse("unknown", 123, false);
 
         match perm {
-            Ok(perm) => assert_eq!(perm, Permission::Custom(Cow::from("unknown"), PermissionValue::Int(123))),
+            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown".to_owned(), PermissionValue::Int(123))),
             Err(e) => panic!("Expected Ok, got '{}'", e),
         }
     }
 
     #[test]
     fn test_parse_unknown_bool() {
-        let perm = Permission::parse(Cow::from("unknown"), "true", false);
+        let perm = Permission::parse("unknown", 1, false);
 
         match perm {
-            Ok(perm) => assert_eq!(perm, Permission::Custom(Cow::from("unknown"), PermissionValue::Bool(true))),
+            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown".to_owned(), PermissionValue::Bool(true))),
             Err(e) => panic!("Expected Ok, got '{}'", e),
         }
     }
 
     #[test]
-    fn test_parse_unknown_parse_error() {
-        let perm = Permission::parse(Cow::from("unknown"), "hello", false);
-
-        assert!(perm.is_err());
-    }
-
-    #[test]
     fn test_parse_unknown_error() {
-        let perm = Permission::parse(Cow::from("unknown"), "true", true);
+        let perm = Permission::parse("unknown", 1, true);
 
         assert!(perm.is_err());
     }

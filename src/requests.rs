@@ -297,7 +297,7 @@ impl QueryClient {
     pub async fn channel_add_perm_multiple(
         &self,
         channel_id: u32,
-        permissions: &[Permission<'_>],
+        permissions: &[Permission],
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
             .arg("cid", channel_id)?
@@ -309,7 +309,7 @@ impl QueryClient {
     pub async fn channel_add_perm(
         &self,
         channel_id: u32,
-        permission: &Permission<'_>,
+        permission: &Permission,
     ) -> Result<(), QueryError> {
         let pair = permission.into_pair();
 
@@ -445,11 +445,11 @@ impl QueryClient {
         self.channel_perm_list_into(channel_id, Vec::new()).await
     }
 
-    pub async fn channel_perm_list_into<'a>(
+    pub async fn channel_perm_list_into(
         &self,
         channel_id: u32,
-        dst: Vec<ChannelPermission<'a>>,
-    ) -> Result<Vec<ChannelPermission<'a>>, QueryError> {
+        dst: Vec<ChannelPermission>,
+    ) -> Result<Vec<ChannelPermission>, QueryError> {
         let command = Command::new("channelpermlist")
             .arg("cid", channel_id)?
             .flag("permsid", true);
