@@ -1,214 +1,384 @@
-use std::collections::HashMap;
-use std::fmt::Display;
-use log::warn;
+use std::borrow::Cow;
+use log::{log_enabled, warn};
 use crate::error::ParseError;
 use crate::parser::escape::unescape;
 
-#[derive(Debug)]
-pub struct CommandResponse {
-    pub name: Option<String>,
-    pub args: HashMap<String, String>,
+pub struct Decoder<'a> {
+    buf: &'a [u8],
+    pos: usize,
+    cur_sep: Separator,
+    entries: Vec<Vec<Pair>>,
 }
 
-// getters
-impl CommandResponse {
-    pub fn get<D: Decode + Default>(&mut self, key: &str) -> Result<D, ParseError> {
-        self.get_or(key, D::default)
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Separator {
+    Assign,
+    Pair,
+    List,
+    Eof,
+}
 
-    pub fn get_or<D: Decode, F: FnOnce() -> D>(&mut self, key: &str, default: F) -> Result<D, ParseError> {
-        match self.args.remove(key) {
-            Some(val) => D::decode(key, val),
-            None => Ok(default()),
+pub struct Pair {
+    pub key: String,
+    pub value: Option<String>,
+}
+
+impl<'a> Decoder<'a> {
+    const ASSIGN: u8 = b'=';
+    const PAIR_SEP: u8 = b' ';
+    const LIST_SEP: u8 = b'|';
+
+    pub fn new(buf: &'a [u8]) -> Self {
+        Self {
+            buf,
+            pos: 0,
+            cur_sep: Separator::Eof,
+            entries: vec![Vec::new()],
         }
     }
-}
 
-// decoder
-impl CommandResponse {
-    pub fn decode(buf: &str, parse_name: bool) -> Result<Self, ParseError> {
-        let mut parts = buf.split(' ');
+    pub fn decode<T>(&mut self) -> Result<T, ParseError>
+        where
+            T: Decode,
+    {
+        T::decode(self)
+    }
 
-        let name = if parse_name {
-            Some(
-                parts.next()
-                    .ok_or_else(|| ParseError::MissingName { response: buf.to_string() })?
-                    .to_string()
-            )
-        } else {
-            None
-        };
+    pub fn decode_name(&mut self) -> Result<String, ParseError> {
+        let key = self.parse_key()?;
 
-        let mut args = HashMap::new();
+        self.parse_sep()?;
 
-        for arg in parts {
-            let mut parts = arg.splitn(2, '=');
-            let key = parts.next()
-                .ok_or_else(|| ParseError::MissingKey {
-                    response: buf.to_string(),
-                    key: arg.to_string(),
-                })?;
-            let val = parts.next();
+        Ok(key)
+    }
 
-            if let Some(val) = val {
-                if val.contains('|') {
-                    let mut buf = String::new();
+    pub fn decode_with_name<T>(&mut self) -> Result<T, ParseError>
+        where
+            T: Decode,
+    {
+        let _ = self.decode_name()?;
+        let value = T::decode(self)?;
 
-                    for arg in arg.split('|') {
-                        let mut parts = arg.splitn(2, '=');
-                        let sub_key = parts.next()
-                            .ok_or_else(|| ParseError::MissingKey {
-                                response: buf.to_string(),
-                                key: arg.to_string(),
-                            })?;
+        Ok(value)
+    }
 
-                        if sub_key != key {
-                            return Err(ParseError::InvalidArgument {
-                                name: sub_key.to_string(),
-                                message: format!("'{}' in multi-arg response does not match the first key '{}'", sub_key, key),
-                            });
-                        }
+    pub fn push_scope(&mut self) {
+        self.entries.push(Vec::new());
+    }
 
-                        let val = parts.next();
-
-                        if let Some(val) = val {
-                            if !buf.is_empty() {
-                                buf.push(',');
-                            }
-
-                            unescape(val, &mut buf)?;
-                        } else {
-                            return Err(ParseError::InvalidArgument {
-                                name: sub_key.to_string(),
-                                message: "Missing value".to_string(),
-                            });
-                        }
-                    }
-
-                    args.insert(key.to_owned(), buf);
-                } else {
-                    let mut result = String::new();
-
-                    unescape(val, &mut result)?;
-                    args.insert(key.to_owned(), result);
+    pub fn pop_scope(&mut self) {
+        if let Some(missing) = self.entries.pop() {
+            if log_enabled!(log::Level::Debug) {
+                for pair in missing {
+                    warn!("Missing key: '{}'", pair.key);
                 }
-            } else {
-                args.insert(key.to_owned(), String::new());
             }
         }
-
-        Ok(Self {
-            name,
-            args,
-        })
     }
 
-    pub fn decode_multi(buf: &str) -> Result<Vec<Self>, ParseError> {
-        let mut responses = Vec::new();
-
-        for buf in buf.split('|') {
-            responses.push(Self::decode(buf, false)?);
-        }
-
-        Ok(responses)
+    pub fn last_sep(&self) -> Separator {
+        self.cur_sep
     }
-}
 
-impl Display for CommandResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(name) = &self.name {
-            write!(f, "{} ", name)?;
+    pub fn advance<T>(&mut self, key: &'a str) -> Result<Option<T>, ParseError>
+        where
+            T: DecodeValue,
+    {
+        match self.advance_internal(key) {
+            Ok(Some(value)) => T::decode(key, value).map(Some),
+            Ok(None) => Ok(None),
+            Err(ParseError::Eof) => Err(ParseError::MissingKey(key.to_string())),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn advance_or_none<T>(&mut self, key: &'a str) -> Result<Option<T>, ParseError>
+        where
+            T: DecodeValue,
+    {
+        match self.advance_internal(key) {
+            Ok(Some(value)) => T::decode(key, value).map(Some),
+            Ok(None) | Err(ParseError::Eof) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn advance_or_default<T>(&mut self, key: &'a str) -> Result<T, ParseError>
+        where
+            T: DecodeValue + Default,
+    {
+        self.advance_or_none(key).map(|v| v.unwrap_or_default())
+    }
+
+    pub fn advance_or_err<T>(&mut self, key: &'a str) -> Result<T, ParseError>
+        where
+            T: DecodeValue,
+    {
+        match self.advance(key) {
+            Ok(Some(value)) => Ok(value),
+            Ok(None) => Err(ParseError::MissingValue(key.to_owned())),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn is_eof(&self) -> bool {
+        self.pos >= self.buf.len()
+    }
+
+    fn parse_key(&mut self) -> Result<String, ParseError> {
+        let pos = self.pos;
+        let len = self.buf.len();
+
+        let end = self.buf[pos..]
+            .iter()
+            .position(|&b| b == Self::ASSIGN || b == Self::PAIR_SEP || b == Self::LIST_SEP)
+            .map(|cur_pos| pos + cur_pos)
+            .unwrap_or(len);
+
+        let vec = Vec::from(&self.buf[pos..end]);
+        let key = String::from_utf8(vec)?;
+
+        self.pos = end;
+
+        Ok(key)
+    }
+
+    fn parse_sep(&mut self) -> Result<(), ParseError> {
+        let pos = self.pos;
+        let len = self.buf.len();
+
+        if pos >= len {
+            self.cur_sep = Separator::Eof;
+            return Ok(());
         }
 
-        let mut first = true;
-
-        for (key, val) in &self.args {
-            if first {
-                first = false;
-            } else {
-                write!(f, " ")?;
-            }
-
-            write!(f, "{}={}", key, val)?;
-        }
+        self.cur_sep = match self.buf[pos] {
+            Self::ASSIGN => {
+                self.pos += 1;
+                Separator::Assign
+            },
+            Self::PAIR_SEP => {
+                self.pos += 1;
+                Separator::Pair
+            },
+            Self::LIST_SEP => {
+                self.pos += 1;
+                Separator::List
+            },
+            _ => return Err(ParseError::UnexpectedToken((self.buf[pos] as char).to_string()))
+        };
 
         Ok(())
     }
-}
 
-impl Drop for CommandResponse {
-    fn drop(&mut self) {
-        // Only for debugging if stuff is missing
-        for (key, val) in &self.args {
-            if key == "msg" {
-                continue;
+    fn parse_value(&mut self) -> Result<String, ParseError> {
+        let pos = self.pos;
+        let len = self.buf.len();
+
+        let end = self.buf[pos..]
+            .iter()
+            .position(|&b| b == Self::PAIR_SEP || b == Self::LIST_SEP)
+            .map(|cur_pos| pos + cur_pos)
+            .unwrap_or(len);
+
+        let mut value = String::with_capacity(end - pos);
+
+        unescape(&self.buf[pos..end], &mut value)?;
+
+        self.pos = end;
+
+        Ok(value)
+    }
+
+    fn parse_pair(&mut self) -> Result<Pair, ParseError> {
+        let key = self.parse_key()?;
+
+        self.parse_sep()?;
+
+        match self.cur_sep {
+            Separator::Assign => {
+                let value = self.parse_value()?;
+
+                self.parse_sep()?;
+
+                Ok(Pair { key, value: Some(value) })
+            },
+            _ => Ok(Pair { key, value: None }),
+        }
+    }
+
+    fn advance_internal(&mut self, key: &'a str) -> Result<Option<String>, ParseError> {
+        let scope = self.entries.last_mut()
+            .ok_or(ParseError::NoScope)?;
+
+        if let Some(i) = scope.iter().position(|k| k.key == key) {
+            return Ok(scope.remove(i).value);
+        }
+
+        if self.is_eof() {
+            return Err(ParseError::Eof)
+        }
+
+        loop {
+            let pair = self.parse_pair()?;
+
+            if pair.key == key {
+                return Ok(pair.value);
+            } else {
+                self.entries.last_mut()
+                    .ok_or(ParseError::NoScope)?
+                    .push(pair);
             }
 
-            warn!("Missing {} with value {} in \"{}\"", key, val, self);
+            match self.cur_sep {
+                Separator::Pair => {},
+                Separator::Eof => return Err(ParseError::Eof),
+                _ => return Err(ParseError::InvalidSeparator(self.cur_sep))
+            }
         }
     }
 }
 
-pub trait Decode: Sized {
-    fn decode(key: &str, value: String) -> Result<Self, ParseError>;
-}
-
-// placeholder
-impl<T : Decode> Decode for Option<T> {
-    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
-        if value.is_empty() {
-            return Ok(None);
-        }
-
-        Ok(Some(T::decode(_key, value)?))
+impl Drop for Decoder<'_> {
+    fn drop(&mut self) {
+        self.pop_scope()
     }
 }
 
-impl Decode for String {
+pub trait Decode {
+    fn decode(decoder: &mut Decoder) -> Result<Self, ParseError>
+        where
+            Self: Sized;
+}
+
+pub trait DecodeValue {
+    fn decode(key: &str, value: String) -> Result<Self, ParseError>
+        where
+            Self: Sized;
+}
+
+pub trait DecodeInto {
+    fn decode_into(self, decoder: &mut Decoder) -> Result<Self, ParseError>
+        where
+            Self: Sized;
+}
+
+pub trait DecodeCustomInto<T> {
+    fn decode_into<F>(self, decoder: &mut Decoder, gen: F) -> Result<Self, ParseError>
+        where
+            F: Fn(&mut Decoder) -> Result<T, ParseError>,
+            Self: Sized;
+}
+
+impl DecodeValue for String {
     fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         Ok(value)
     }
 }
 
-impl Decode for bool {
+impl DecodeValue for bool {
     fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
-        match value.as_str() {
+        match value.as_ref() {
             "1" => Ok(true),
             "0" => Ok(false),
-            _ => Err(ParseError::ArgTypeError {
-                key: _key.to_string(),
-                value,
-                expected_type: "boolean".to_string(),
-                error: "Invalid boolean value".to_string(),
-            })
+            _ => Err(ParseError::ParseIntBool(Cow::from(value)))
         }
     }
 }
 
 impl<T: Decode> Decode for Vec<T> {
-    fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
-        let mut list = Vec::new();
+    fn decode(decoder: &mut Decoder) -> Result<Self, ParseError> {
+        decoder.push_scope();
 
-        for val in value.split(',') {
-            list.push(T::decode(_key, val.to_string())?);
+        let mut vec = Vec::new();
+
+        loop {
+            vec.push(T::decode(decoder)?);
+
+            match decoder.last_sep() {
+                Separator::List => {},
+                Separator::Eof => break,
+                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep()))
+            }
         }
 
-        Ok(list)
+        decoder.pop_scope();
+
+        Ok(vec)
+    }
+}
+
+impl<T: Decode> DecodeInto for Vec<T> {
+    fn decode_into(mut self, decoder: &mut Decoder) -> Result<Self, ParseError> {
+        decoder.push_scope();
+
+        loop {
+            self.push(T::decode(decoder)?);
+
+            match decoder.last_sep() {
+                Separator::List => {},
+                Separator::Eof => break,
+                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep()))
+            }
+        }
+
+        decoder.pop_scope();
+
+        Ok(self)
+    }
+}
+
+impl<T> DecodeCustomInto<T> for Vec<T> {
+    fn decode_into<F>(mut self, decoder: &mut Decoder, gen: F) -> Result<Self, ParseError>
+        where
+            F: Fn(&mut Decoder) -> Result<T, ParseError>
+    {
+        decoder.push_scope();
+
+        loop {
+            self.push(gen(decoder)?);
+
+            match decoder.last_sep() {
+                Separator::List => {},
+                Separator::Eof => break,
+                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep()))
+            }
+        }
+
+        decoder.pop_scope();
+
+        Ok(self)
+    }
+}
+
+impl<T: DecodeValue> DecodeValue for Vec<T> {
+    fn decode(key: &str, value: String) -> Result<Self, ParseError> {
+        let mut vec = Vec::new();
+
+        for val in value.split(',') {
+            vec.push(T::decode(key, val.to_owned())?);
+        }
+
+        Ok(vec)
+    }
+}
+
+impl<T: DecodeValue> DecodeValue for Option<T> {
+    fn decode(key: &str, value: String) -> Result<Self, ParseError> {
+        if value.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(T::decode(key, value)?))
+        }
     }
 }
 
 macro_rules! impl_decode {
     ($($type:ident),*) => {
         $(
-            impl Decode for $type {
+            impl DecodeValue for $type {
                 fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
-                    value.parse::<$type>()
-                        .map_err(|e| ParseError::ArgTypeError {
-                            key: _key.to_string(),
-                            value,
-                            expected_type: stringify!($type).to_string(),
-                            error: e.to_string(),
-                        })
+                    Ok(value.parse::<$type>()?)
                 }
             }
         )*
@@ -219,190 +389,191 @@ impl_decode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128, f32, f64);
 
 #[cfg(test)]
 mod test {
+    use crate::macros::ts_response;
     use super::*;
 
     #[test]
-    fn test_decode_none() {
-        let response = CommandResponse::decode("test", true).unwrap();
+    fn test_decode_name() {
+        let response = Decoder::new(b"test").decode_name().unwrap();
 
-        assert_eq!(response.name, Some("test".to_string()));
-        assert_eq!(response.args.len(), 0);
-    }
-
-    #[test]
-    fn test_decode_str() {
-        let mut response = CommandResponse::decode("test some_string=hello", true).unwrap();
-
-        assert_eq!(response.name, Some("test".to_string()));
-
-        match response.get::<String>("some_string") {
-            Ok(val) => assert_eq!(val, "hello"),
-            Err(e) => panic!("{:?}", e),
-        }
-
-        assert_eq!(response.args.len(), 0);
-    }
-
-    #[test]
-    fn test_decode_i32() {
-        let mut response = CommandResponse::decode("test some_integer=69", true).unwrap();
-
-        assert_eq!(response.name, Some("test".to_string()));
-
-        match response.get::<i32>("some_integer") {
-            Ok(val) => assert_eq!(val, 69),
-            Err(e) => panic!("{:?}", e),
-        }
-
-        assert_eq!(response.args.len(), 0);
+        assert_eq!(response, "test");
     }
 
     #[test]
     #[allow(clippy::bool_assert_comparison)]
-    fn test_decode_bool() {
-        let mut response = CommandResponse::decode("test some_bool=1", true).unwrap();
-
-        assert_eq!(response.name, Some("test".to_string()));
-
-        match response.get::<bool>("some_bool") {
-            Ok(val) => assert_eq!(val, true),
-            Err(e) => panic!("{:?}", e),
+    fn test_decode_struct() {
+        ts_response! {
+            Test {
+                some_string: String,
+                some_integer: i32,
+                some_bool: bool,
+                some_list: Vec<String>,
+                some_list2: Vec<i32>,
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_string=hello some_integer=69 some_bool=1 some_list=hello,world some_list2=69,420");
+        let response = Test::decode(&mut decoder).unwrap();
+
+        assert_eq!(response.some_string, "hello");
+        assert_eq!(response.some_integer, 69);
+        assert_eq!(response.some_bool, true);
+        assert_eq!(response.some_list, vec!["hello", "world"]);
+        assert_eq!(response.some_list2, vec![69, 420]);
     }
 
     #[test]
-    fn test_decode_list() {
-        let mut response = CommandResponse::decode("test some_list=hello,world", true).unwrap();
-
-        assert_eq!(response.name, Some("test".to_string()));
-
-        match response.get::<Vec<String>>("some_list") {
-            Ok(val) => assert_eq!(val, vec!["hello", "world"]),
-            Err(e) => panic!("{:?}", e),
+    #[allow(clippy::bool_assert_comparison)]
+    fn test_decode_struct_reverse_order() {
+        ts_response! {
+            Test {
+                some_string: String,
+                some_integer: i32,
+                some_bool: bool,
+                some_list: Vec<String>,
+                some_list2: Vec<i32>,
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_list2=69,420 some_list=hello,world some_bool=1 some_integer=69 some_string=hello");
+        let response = Test::decode(&mut decoder).unwrap();
+
+        assert_eq!(response.some_string, "hello");
+        assert_eq!(response.some_integer, 69);
+        assert_eq!(response.some_bool, true);
+        assert_eq!(response.some_list, vec!["hello", "world"]);
+        assert_eq!(response.some_list2, vec![69, 420]);
     }
 
     #[test]
-    fn test_decode_i32_list() {
-        let mut response = CommandResponse::decode("test some_list=69,420", true).unwrap();
-
-        assert_eq!(response.name, Some("test".to_string()));
-
-        match response.get::<Vec<i32>>("some_list") {
-            Ok(val) => assert_eq!(val, vec![69, 420]),
-            Err(e) => panic!("{:?}", e),
+    #[allow(clippy::bool_assert_comparison)]
+    fn test_decode_struct_with_unknown() {
+        ts_response! {
+            Test {
+                some_string: String,
+                some_integer: i32,
+                some_bool: bool,
+                some_list: Vec<String>,
+                some_list2: Vec<i32>,
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_string=hello some_integer=69 some_bool=1 some_list=hello,world some_list2=69,420 some_unknown=hello");
+        let response = Test::decode(&mut decoder).unwrap();
+
+        assert_eq!(response.some_string, "hello");
+        assert_eq!(response.some_integer, 69);
+        assert_eq!(response.some_bool, true);
+        assert_eq!(response.some_list, vec!["hello", "world"]);
+        assert_eq!(response.some_list2, vec![69, 420]);
     }
 
     #[test]
-    fn test_decode_str_without_name() {
-        let mut response = CommandResponse::decode("some_string=hello", false).unwrap();
-
-        assert_eq!(response.name, None);
-
-        match response.get::<String>("some_string") {
-            Ok(val) => assert_eq!(val, "hello"),
-            Err(e) => panic!("{:?}", e),
+    fn test_decode_struct_with_missing() {
+        ts_response! {
+            Test {
+                some_string: String,
+                some_integer: i32,
+                some_bool: bool, // missing
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_string=hello some_integer=69");
+
+        match Test::decode(&mut decoder) {
+            Ok(_) => panic!("Expected error"),
+            Err(ParseError::MissingKey(key)) => assert_eq!(key, "some_bool"),
+            Err(e) => panic!("Expected MissingKey, got {:?}", e),
+        }
     }
 
     #[test]
-    fn test_decode_multi_but_only_one() {
-        let mut responses = CommandResponse::decode_multi("test1").unwrap();
-
-        assert_eq!(responses.len(), 1);
-
-        let mut response = responses.remove(0);
-
-        assert_eq!(response.name, None);
-        assert_eq!(response.args.len(), 1);
-
-        match response.get::<String>("test1") {
-            Ok(val) => assert_eq!(val, ""),
-            Err(e) => panic!("{:?}", e),
+    fn test_decode_struct_with_missing_value() {
+        ts_response! {
+            Test {
+                some_string: String,
+                some_integer: i32,
+                some_bool: bool,
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_string=hello some_integer=69 some_bool");
+
+        match Test::decode(&mut decoder) {
+            Ok(_) => panic!("Expected error"),
+            Err(ParseError::MissingValue(key)) => assert_eq!(key, "some_bool"),
+            Err(e) => panic!("Expected MissingValue, got {:?}", e),
+        }
     }
 
     #[test]
-    fn test_decode_multi() {
-        let mut responses = CommandResponse::decode_multi("test1=hi|test2=mom").unwrap();
-
-        assert_eq!(responses.len(), 2);
-
-        let mut response = responses.remove(0);
-
-        assert_eq!(response.name, None);
-        assert_eq!(response.args.len(), 1);
-
-        match response.get::<String>("test1") {
-            Ok(val) => assert_eq!(val, "hi"),
-            Err(e) => panic!("{:?}", e),
+    #[allow(clippy::bool_assert_comparison)]
+    fn test_decode_struct_with_no_value() {
+        ts_response! {
+            Test {
+                some_string: String,
+                some_integer: i32,
+                some_bool: bool,
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_string= some_integer=69 some_bool=1");
+        let response = Test::decode(&mut decoder).unwrap();
 
-        let mut response = responses.remove(0);
-
-        assert_eq!(response.name, None);
-        assert_eq!(response.args.len(), 1);
-
-        match response.get::<String>("test2") {
-            Ok(val) => assert_eq!(val, "mom"),
-            Err(e) => panic!("{:?}", e),
-        }
-
-        assert_eq!(response.args.len(), 0);
+        assert_eq!(response.some_string, "");
+        assert_eq!(response.some_integer, 69);
+        assert_eq!(response.some_bool, true);
     }
 
     #[test]
-    fn test_decode_multi_multiple_args() {
-        let mut responses = CommandResponse::decode_multi("test1=hi test2=69|test1=mom test2=420").unwrap();
-
-        assert_eq!(responses.len(), 2);
-
-        let mut response = responses.remove(0);
-
-        assert_eq!(response.name, None);
-        assert_eq!(response.args.len(), 2);
-
-        match response.get::<String>("test1") {
-            Ok(val) => assert_eq!(val, "hi"),
-            Err(e) => panic!("{:?}", e),
+    #[allow(clippy::bool_assert_comparison)]
+    fn test_decode_struct_inline() {
+        ts_response! {
+            MyInlinedTest {
+                some_integer: i32,
+                some_bool: bool,
+            }
         }
 
-        match response.get::<String>("test2") {
-            Ok(val) => assert_eq!(val, "69"),
-            Err(e) => panic!("{:?}", e),
+        ts_response! {
+            Test {
+                some_string: String,
+                some_inlined: Inline<MyInlinedTest>,
+            }
         }
 
-        assert_eq!(response.args.len(), 0);
+        let mut decoder = Decoder::new(b"some_string=hello some_integer=69 some_bool=1");
+        let response = decoder.decode::<Test>().unwrap();
 
-        let mut response = responses.remove(0);
-
-        assert_eq!(response.name, None);
-        assert_eq!(response.args.len(), 2);
-
-        match response.get::<String>("test1") {
-            Ok(val) => assert_eq!(val, "mom"),
-            Err(e) => panic!("{:?}", e),
-        }
-
-        match response.get::<String>("test2") {
-            Ok(val) => assert_eq!(val, "420"),
-            Err(e) => panic!("{:?}", e),
-        }
-
-        assert_eq!(response.args.len(), 0);
+        assert_eq!(response.some_string, "hello");
+        assert_eq!(response.some_inlined.some_integer, 69);
+        assert_eq!(response.some_inlined.some_bool, true);
     }
 
+    #[test]
+    #[allow(clippy::bool_assert_comparison)]
+    fn test_decode_struct_inline_vec() {
+        ts_response! {
+            MyInlinedTest {
+                some_integer: i32,
+                some_bool: bool,
+            }
+        }
+
+        ts_response! {
+            Test {
+                some_string: String,
+                some_inlined: Inline<Vec, MyInlinedTest>,
+            }
+        }
+
+        let mut decoder = Decoder::new(b"some_string=hello some_integer=69 some_bool=1|some_integer=420 some_bool=0");
+        let response = decoder.decode::<Test>().unwrap();
+
+        assert_eq!(response.some_string, "hello");
+        assert_eq!(response.some_inlined[0].some_integer, 69);
+        assert_eq!(response.some_inlined[0].some_bool, true);
+        assert_eq!(response.some_inlined[1].some_integer, 420);
+        assert_eq!(response.some_inlined[1].some_bool, false);
+    }
 }

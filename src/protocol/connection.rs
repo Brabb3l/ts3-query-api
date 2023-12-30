@@ -1,7 +1,9 @@
 use tokio::net::TcpStream;
 use tokio::time::sleep;
+use crate::definitions::Status;
 use crate::error::QueryError;
 use crate::event::Event;
+use crate::parser::Decoder;
 use super::reader::Reader;
 use super::types::{RawCommandRequest, RawCommandResponse};
 use super::writer::Writer;
@@ -58,16 +60,17 @@ impl Connection {
                 response_tx
             }).map_err(|_| QueryError::ConnectionClosed)?;
 
-            let mut status = response_rx.recv_async().await
-                .map_err(|_| QueryError::ConnectionClosed)?.status;
+            let status = response_rx.recv_async().await
+                .map_err(|_| QueryError::ConnectionClosed)?;
 
-            let response_id = status.get::<i32>("id")?;
+            let status = Decoder::new(status.status())
+                .decode_with_name::<Status>()
+                .map_err(|e| QueryError::ParseError(e.into()))?;
 
-            if response_id != 0 {
+            if status.id != 0 {
                 return Err(QueryError::QueryError {
-                    id: response_id,
-                    message: status.get("msg")?,
-                    response: status
+                    id: status.id,
+                    message: status.message
                 });
             }
         }

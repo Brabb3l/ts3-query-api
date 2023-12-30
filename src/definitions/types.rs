@@ -1,4 +1,6 @@
-use crate::parser::Encode;
+use crate::definitions::builder::{ChannelListFlags, ClientListFlags};
+use crate::error::ParseError;
+use crate::parser::{Decode, Decoder, Encode};
 use super::*;
 
 #[derive(Debug)]
@@ -16,6 +18,37 @@ pub struct ClientListDynamicEntry {
     pub badges: Option<ClientListBadgesEntry>,
 }
 
+impl ClientListDynamicEntry {
+    pub fn decode(decoder: &mut Decoder, flags: &ClientListFlags) -> Result<Self, ParseError> {
+        let base = ClientListEntry::decode(decoder)?;
+
+        let uid = if flags.uid { Some(decoder.decode()?) } else { None };
+        let away = if flags.away { Some(decoder.decode()?) } else { None };
+        let voice = if flags.voice { Some(decoder.decode()?) } else { None };
+        let times = if flags.times { Some(decoder.decode()?) } else { None };
+        let groups = if flags.groups { Some(decoder.decode()?) } else { None };
+        let info = if flags.info { Some(decoder.decode()?) } else { None };
+        let country = if flags.country { Some(decoder.decode()?) } else { None };
+        let ip = if flags.ip { Some(decoder.decode()?) } else { None };
+        let icon = if flags.icon { Some(decoder.decode()?) } else { None };
+        let badges = if flags.badges { Some(decoder.decode()?) } else { None };
+
+        Ok(Self {
+            base,
+            uid,
+            away,
+            voice,
+            times,
+            groups,
+            info,
+            country,
+            ip,
+            icon,
+            badges,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct ChannelListDynamicEntry {
     pub base: ChannelListEntry,
@@ -26,6 +59,31 @@ pub struct ChannelListDynamicEntry {
     pub icon: Option<ChannelListIconEntry>,
     pub seconds_empty: Option<ChannelListSecondsEmptyEntry>,
     pub banners: Option<ChannelListBannerEntry>,
+}
+
+impl ChannelListDynamicEntry {
+    pub fn decode(decoder: &mut Decoder, flags: &ChannelListFlags) -> Result<Self, ParseError> {
+        let base = ChannelListEntry::decode(decoder)?;
+
+        let topic = if flags.topic { Some(decoder.decode()?) } else { None };
+        let flags2 = if flags.flags { Some(decoder.decode()?) } else { None };
+        let voice = if flags.voice { Some(decoder.decode()?) } else { None };
+        let limits = if flags.limits { Some(decoder.decode()?) } else { None };
+        let icon = if flags.icon { Some(decoder.decode()?) } else { None };
+        let seconds_empty = if flags.seconds_empty { Some(decoder.decode()?) } else { None };
+        let banners = if flags.banners { Some(decoder.decode()?) } else { None };
+
+        Ok(Self {
+            base,
+            topic,
+            flags: flags2,
+            voice,
+            limits,
+            icon,
+            seconds_empty,
+            banners,
+        })
+    }
 }
 
 #[derive(Debug)]

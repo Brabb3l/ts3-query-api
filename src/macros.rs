@@ -78,13 +78,13 @@ macro_rules! permissions {
         #[derive(Debug, PartialEq, Eq)]
         pub enum $type<'a> {
             $($name($crate::macros::permission_value!($ty))),*,
-            Custom(&'a str, PermissionValue),
+            Custom(std::borrow::Cow<'a, str>, PermissionValue),
         }
 
         #[allow(dead_code)]
         impl<'a> $type<'a> {
-            pub fn parse(id: &'a str, value: &str, error_on_unknown: bool) -> Result<$type<'a>, $crate::error::ParseError> {
-                match id {
+            pub fn parse(id: std::borrow::Cow<'a, str>, value: &str, error_on_unknown: bool) -> Result<$type<'a>, $crate::error::ParseError> {
+                match id.as_ref() {
                     $( stringify!($name) => Ok($type::$name(value.parse()?)), )*
                     _ => if error_on_unknown {
                         Err($crate::error::ParseError::UnknownPermission {
@@ -96,7 +96,7 @@ macro_rules! permissions {
                         } else if let Ok(value) = value.parse::<bool>() {
                             Ok($type::Custom(id, PermissionValue::Bool(value)))
                         } else {
-                            Err($crate::error::ParseError::InvalidValue(id.to_string()))
+                            Err($crate::error::ParseError::InvalidValue(std::borrow::Cow::from(id.to_string())))
                         }
                     }
                 }
@@ -122,46 +122,84 @@ macro_rules! permissions {
     }
 }
 
-macro_rules! ts_response_str {
-    ($field:ident) => {
-        stringify!($field)
-    };
-    ($field:ident, $str:expr) => {
-        $str
-    }
+macro_rules! decode_key {
+    ($key:ident) => { stringify!($key) };
+    ($key:ident, $opt_name:expr) => { $opt_name };
 }
 
-macro_rules! ts_response_getter {
-    ($response:expr, $field_value:expr) => {
-        $response.get($field_value)
+macro_rules! decode_type {
+    (Inline<$type:tt$(, $sg:tt)?>) => { $type $(<$sg>)? };
+    ($type:ident $(<$generics:tt>)?) => { $type $(<$generics>)? };
+}
+
+macro_rules! decode_advance {
+    (
+        $decoder:ident,
+        $key:expr,
+        Inline<$type:tt>
+    ) => {
+        $decoder.decode()?
     };
-    ($response:expr, $field_value:expr, $default:expr) => {
-        $response.get_or($field_value, || $default)
+    (
+        $decoder:ident,
+        $key:expr,
+        Option<$type:tt>
+        $(, $default:expr)?
+    ) => {
+        $decoder.advance_or_none($key)
+            $(.map(|v| v.unwrap_or($default)))??
+    };
+    (
+        $decoder:ident,
+        $key:expr,
+        Vec<$type:tt>
+    ) => {
+        $decoder.advance_or_default($key)?
+    };
+    (
+        $decoder:ident,
+        $key:expr,
+        $type:ident $(<$generics:tt>)?
+    ) => {
+        $decoder.advance_or_err($key)?
+    };
+    (
+        $decoder:ident,
+        $key:expr,
+        $type:ident $(<$generics:tt>)?,
+        $default:expr
+    ) => {
+        $decoder.advance_or_err($key)
+            .unwrap_or($default)
     };
 }
 
 macro_rules! ts_response {
-    ($type:ident {
-        $($field:ident$(($str:expr))?: $field_type:ident $(<$generics:ident>)? $(= $default:expr)?),* $(,)?
-    }) => {
-        #[allow(dead_code)]
+    (
+        $type:ident $(<$lifetime:lifetime>)? {
+            $($field:ident$(($opt_name:expr))?: $field_type:ident $(<$generics:tt $(, $sg:tt)?>)? $(= $default:expr)?),* $(,)?
+        }
+    ) => {
         #[derive(Debug)]
-        pub struct $type {
-            $(pub $field: $field_type $(<$generics>)?),*
+        pub struct $type $(<$lifetime>)? {
+            $(pub $field: crate::macros::decode_type!($field_type $(<$generics$(, $sg)?>)?)),*
         }
 
-        impl $type {
-            pub fn from(response: &mut $crate::parser::CommandResponse) -> Result<Self, $crate::error::ParseError> {
+        impl $(<$lifetime>)? crate::parser::Decode for $type $(<$lifetime>)? {
+            fn decode(decoder: &mut crate::parser::Decoder) -> Result<Self, crate::error::ParseError> {
                 Ok(Self {
-                    $($field: $crate::macros::ts_response_getter!(
-                        response,
-                        $crate::macros::ts_response_str!($field $(, $str)?)
-                        $(, $default)?
-                    )?),*
+                    $(
+                        $field: crate::macros::decode_advance!(
+                            decoder,
+                            crate::macros::decode_key!($field $(, $opt_name)?),
+                            $field_type $(<$generics>)?
+                            $(, $default)?
+                        )
+                    ),*
                 })
             }
         }
-    }
+    };
 }
 
 macro_rules! ts_enum {
@@ -177,9 +215,9 @@ macro_rules! ts_enum {
             Unknown(String),
         }
 
-        impl crate::parser::Decode for $type {
+        impl crate::parser::DecodeValue for $type {
             fn decode(_key: &str, value: String) -> Result<Self, $crate::error::ParseError> {
-                match value.as_str() {
+                match value.as_ref() {
                     $( stringify!($value) => Ok($type::$name), )*
                     _ => Ok($type::Unknown(value)),
                 }
@@ -288,8 +326,9 @@ pub(crate) use permission_value;
 pub(crate) use permissions;
 
 pub(crate) use ts_response;
-pub(crate) use ts_response_str;
-pub(crate) use ts_response_getter;
+pub(crate) use decode_key;
+pub(crate) use decode_type;
+pub(crate) use decode_advance;
 
 pub(crate) use ts_enum;
 

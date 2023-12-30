@@ -1,7 +1,27 @@
+use std::borrow::Cow;
+use crate::definitions::*;
 use crate::error::ParseError;
 use crate::macros::ts_response;
-use crate::parser::Decode;
-use super::*;
+use crate::parser::DecodeValue;
+
+ts_response! {
+    Status {
+        id("id"): u32,
+        message("msg"): String,
+    }
+}
+
+ts_response! {
+    ChannelId {
+        id("cid"): u32
+    }
+}
+
+ts_response! {
+    BanId {
+        id("banid"): u32
+    }
+}
 
 // apikey
 
@@ -174,9 +194,19 @@ ts_response! {
         forced_silence("channel_forced_silence"): bool,
 
         filepath("channel_filepath"): String,
-        seconds_empty: u32,
+        seconds_empty: i32,
         delete_delay("channel_delete_delay"): u32,
-        security_salt("channel_security_salt"): String,
+        security_salt("channel_security_salt"): Option<String>,
+    }
+}
+
+// channel perm list
+
+ts_response! {
+    ChannelPermission<'a> {
+        perm: Inline<Permission, 'a>,
+        perm_negated("permnegated"): bool,
+        perm_skip("permskip"): bool,
     }
 }
 
@@ -201,7 +231,7 @@ ts_response! {
 ts_response! {
     ClientListAwayEntry {
         away("client_away"): bool,
-        away_message("client_away_message"): String
+        away_message("client_away_message"): Option<String>
     }
 }
 
@@ -245,7 +275,7 @@ ts_response! {
 
 ts_response! {
     ClientListCountryEntry {
-        country("client_country"): String
+        country("client_country"): Option<String>
     }
 }
 
@@ -263,7 +293,7 @@ ts_response! {
 
 ts_response! {
     ClientListBadgesEntry {
-        badges("client_badges"): Badges
+        badges("client_badges"): Option<Badges>
     }
 }
 
@@ -271,8 +301,6 @@ ts_response! {
 
 ts_response! {
     ClientInfo {
-        id("clid"): u32,
-
         nickname("client_nickname"): String,
         unique_identifier("client_unique_identifier"): String,
         database_id("client_database_id"): u32,
@@ -281,16 +309,16 @@ ts_response! {
 
         version("client_version"): String,
         platform("client_platform"): String,
-        base64_hash_client_uid("client_base64HashClientUID"): String,
+        base64_hash_client_uid("client_base64HashClientUID"): Option<String>,
 
-        login_name("client_login_name"): String,
+        login_name("client_login_name"): Option<String>,
         nickname_phonetic("client_nickname_phonetic"): Option<String>,
         description("client_description"): Option<String>,
         icon_id("client_icon_id"): u32,
         country("client_country"): Option<String>,
-        badges("client_badges"): Badges,
+        badges("client_badges"): Badges = Badges::default(),
         signed_badges("client_signed_badges"): Vec<String>,
-        myteamspeak_id("client_myteamspeak_id"): String,
+        myteamspeak_id("client_myteamspeak_id"): Option<String>,
         myteamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
         integrations("client_integrations"): Option<String>,
         flag_avatar("client_flag_avatar"): Option<String>,
@@ -299,11 +327,11 @@ ts_response! {
         away("client_away"): bool,
         away_message("client_away_message"): Option<String>,
 
-        default_channel("client_default_channel"): String,
+        default_channel("client_default_channel"): Option<String>,
         meta_data("client_meta_data"): Option<String>,
-        version_sign("client_version_sign"): String,
-        security_hash("client_security_hash"): String,
-        unread_messages("client_unread_messages"): u32,
+        version_sign("client_version_sign"): Option<String>,
+        security_hash("client_security_hash"): Option<String>,
+        unread_messages("client_unread_messages"): u32 = 0,
 
         channel_group_id("client_channel_group_id"): u32,
         server_groups("client_servergroups"): Vec<u32>,
@@ -334,7 +362,7 @@ ts_response! {
 
         needed_serverquery_view_power("client_needed_serverquery_view_power"): u32,
         channel_group_inherited_channel_id("client_channel_group_inherited_channel_id"): u32,
-        default_token("client_default_token"): String,
+        default_token("client_default_token"): Option<String>,
 
         file_transfer_bandwidth_sent("connection_filetransfer_bandwidth_sent"): u32,
         file_transfer_bandwidth_received("connection_filetransfer_bandwidth_received"): u32,
@@ -359,30 +387,16 @@ pub struct Badges {
     pub badges: Vec<String>
 }
 
-impl Decode for Badges {
+impl DecodeValue for Badges {
     fn decode(_key: &str, value: String) -> Result<Self, ParseError> {
         let mut overwolf = false;
         let mut badges = Vec::new();
 
-        if value.is_empty() {
-            return Ok(Self {
-                overwolf,
-                badges
-            });
-        }
-
         for part in value.split(':') {
             let mut split = part.split('=');
 
-            let key = split.next().ok_or(ParseError::MissingKey {
-                response: value.to_owned(),
-                key: part.to_owned()
-            })?;
-
-            let value = split.next().ok_or(ParseError::MissingKey {
-                response: value.to_owned(),
-                key: part.to_owned()
-            })?;
+            let key = split.next().ok_or_else(|| ParseError::MissingKey(part.to_owned()))?;
+            let value = split.next().ok_or_else(|| ParseError::MissingKey(part.to_owned()))?;
 
             match key {
                 "Overwolf" => {
@@ -392,10 +406,9 @@ impl Decode for Badges {
                     badges = value.split(',').map(|v| v.to_owned()).collect();
                 },
                 _ => {
-                    return Err(ParseError::UnknownKey {
-                        response: value.to_owned(),
-                        key: key.to_owned()
-                    });
+                    return Err(ParseError::Other(
+                        Cow::from(format!("unknown key: {}", key))
+                    ));
                 }
             }
         }

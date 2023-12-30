@@ -1,11 +1,10 @@
 use std::cmp::max;
 use bytes::BytesMut;
-use log::{debug, error};
+use log::{debug, error, log_enabled};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
 use crate::error::QueryError;
 use crate::event::Event;
-use crate::parser::CommandResponse;
 use crate::protocol::types::RawCommandResponse;
 
 pub(super) struct Reader {
@@ -69,28 +68,28 @@ impl Reader {
             let start = &self.receive_buffer[self.last_cr_pos..pos];
 
             if start.starts_with(b"error") {
-                let response = self.receive_buffer.split_to(pos);
-                let (content, status) = response.split_at(self.last_cr_pos);
+                let response = self.receive_buffer.split_to(pos).freeze();
+                let mid_index = self.last_cr_pos;
 
                 self.last_cr_pos = 0;
                 self.last_scan_pos = 0;
 
-                let content = std::str::from_utf8(&content[..max(2, content.len()) - 2])
-                    .map_err(QueryError::MalformedUTF8)?;
-                let status = std::str::from_utf8(&status[..status.len() - 2])
-                    .map_err(QueryError::MalformedUTF8)?;
+                if log_enabled!(log::Level::Debug) {
+                    let (content, status) = response.split_at(mid_index);
 
-                if !content.is_empty() {
-                    debug!("[S->C] {}", content);
+                    let content = &content[..max(2, content.len()) - 2];
+                    let status = &status[..status.len() - 2];
+
+                    if !content.is_empty() {
+                        debug!("[S->C] {}", std::str::from_utf8(content).unwrap_or("~Malformed UTF-8~"));
+                    }
+
+                    debug!("[S->C] {}", std::str::from_utf8(status).unwrap_or("~Malformed UTF-8~"));
                 }
 
-                debug!("[S->C] {}", status);
-
-                let command = CommandResponse::decode(status, true)?;
-
                 let response = RawCommandResponse {
-                    status: command,
-                    content: content.to_owned()
+                    response,
+                    mid_index
                 };
 
                 self.response_tx.send_async(response).await
@@ -104,9 +103,11 @@ impl Reader {
                 let status = std::str::from_utf8(&status[..status.len() - 2])
                     .map_err(QueryError::MalformedUTF8)?;
 
-                debug!("[S->C] {}", status);
+                if log_enabled!(log::Level::Debug) {
+                    debug!("[S->C] {}", status);
+                }
 
-                let event = Event::from(CommandResponse::decode(status, true)?)?;
+                let event = Event::from(status)?;
 
                 self.event_tx.send_async(event).await
                     .map_err(|_| QueryError::ConnectionClosed)?;

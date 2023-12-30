@@ -1,6 +1,6 @@
 use crate::definitions::*;
 use crate::error::ParseError;
-use crate::parser::CommandResponse;
+use crate::parser::Decoder;
 
 #[derive(Debug)]
 pub enum Event {
@@ -19,27 +19,26 @@ pub enum Event {
 }
 
 impl Event {
-    pub fn from(mut response: CommandResponse) -> Result<Self, ParseError> {
-        let event_name = response.name.as_ref().ok_or_else(|| ParseError::MissingName {
-            response: response.to_string()
-        })?;
+    pub fn from(response: &str) -> Result<Self, ParseError> {
+        let mut decoder = Decoder::new(response.as_bytes());
+        let name = decoder.decode_name()?;
 
-        Ok(match event_name.as_str() {
-            "notifytextmessage" => Event::TextMessage(TextMessageEvent::from(&mut response)?),
-            "notifyclientmoved" => Event::ClientMoved(ClientMoveEvent::from(&mut response)?),
-            "notifycliententerview" => Event::ClientEnterView(ClientEnterViewEvent::from(&mut response)?),
-            "notifyclientleftview" => Event::ClientLeftView(ClientLeftViewEvent::from(&mut response)?),
-            "notifychannelcreated" => Event::ChannelCreated(ChannelCreateEvent::from(&mut response)?),
-            "notifychanneldeleted" => Event::ChannelDeleted(ChannelDeleteEvent::from(&mut response)?),
-            "notifychanneledited" => Event::ChannelEdited(ChannelEditEvent::from(&mut response)?),
-            "notifychannelmoved" => Event::ChannelMoved(ChannelMoveEvent::from(&mut response)?),
-            "notifychanneldescriptionchanged" => Event::ChannelDescriptionChanged(ChannelDescriptionChangeEvent::from(&mut response)?),
-            "notifychannelpasswordchanged" => Event::ChannelPasswordChanged(ChannelPasswordChangeEvent::from(&mut response)?),
-            "notifyserveredited" => Event::ServerEdited(ServerEditEvent::from(&mut response)?),
-            "notifytokenused" => Event::TokenUsed(TokenUseEvent::from(&mut response)?),
+        Ok(match name.as_str() {
+            "notifytextmessage" => Event::TextMessage(decoder.decode()?),
+            "notifyclientmoved" => Event::ClientMoved(decoder.decode()?),
+            "notifycliententerview" => Event::ClientEnterView(decoder.decode()?),
+            "notifyclientleftview" => Event::ClientLeftView(decoder.decode()?),
+            "notifychannelcreated" => Event::ChannelCreated(decoder.decode()?),
+            "notifychanneldeleted" => Event::ChannelDeleted(decoder.decode()?),
+            "notifychanneledited" => Event::ChannelEdited(decoder.decode()?),
+            "notifychannelmoved" => Event::ChannelMoved(decoder.decode()?),
+            "notifychanneldescriptionchanged" => Event::ChannelDescriptionChanged(decoder.decode()?),
+            "notifychannelpasswordchanged" => Event::ChannelPasswordChanged(decoder.decode()?),
+            "notifyserveredited" => Event::ServerEdited(decoder.decode()?),
+            "notifytokenused" => Event::TokenUsed(decoder.decode()?),
             _ => return Err(ParseError::UnknownEvent {
                 response: response.to_string(),
-                event: event_name.clone()
+                event: name.clone()
             })
         })
     }

@@ -22,7 +22,6 @@ ts_response! {
         reason_id("reasonid"): ReasonId,
         reason_msg("reasonmsg"): Option<String>,
 
-        channel_from_id("cfid"): u32,
         channel_to_id("ctid"): u32,
     }
 }

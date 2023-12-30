@@ -19,34 +19,34 @@ pub fn escape(src: &str, dst: &mut String) {
     }
 }
 
-pub fn unescape(src: &str, dst: &mut String) -> Result<(), ParseError> {
+pub fn unescape(src: &[u8], dst: &mut String) -> Result<(), ParseError> {
     let mut escape = false;
 
-    for c in src.chars() {
+    for c in src {
         if escape {
             match c {
-                '\\' => dst.push('\\'),
-                '/' => dst.push('/'),
-                's' => dst.push(' '),
-                'p' => dst.push('|'),
-                'a' => dst.push('\x07'),
-                'b' => dst.push('\x08'),
-                'f' => dst.push('\x0C'),
-                'n' => dst.push('\n'),
-                'r' => dst.push('\r'),
-                't' => dst.push('\t'),
-                'v' => dst.push('\x0B'),
+                b'\\' => dst.push('\\'),
+                b'/' => dst.push('/'),
+                b's' => dst.push(' '),
+                b'p' => dst.push('|'),
+                b'a' => dst.push('\x07'),
+                b'b' => dst.push('\x08'),
+                b'f' => dst.push('\x0C'),
+                b'n' => dst.push('\n'),
+                b'r' => dst.push('\r'),
+                b't' => dst.push('\t'),
+                b'v' => dst.push('\x0B'),
                 _ => {
                     dst.push('\\');
-                    dst.push(c);
+                    dst.push(*c as char);
                 },
             }
 
             escape = false;
-        } else if c == '\\' {
+        } else if *c == b'\\' {
             escape = true;
         } else {
-            dst.push(c);
+            dst.push(*c as char);
         }
     }
 
@@ -139,14 +139,14 @@ mod test {
     fn test_escape_error() {
         let mut dst = String::new();
 
-        assert!(matches!(unescape("test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
+        assert!(matches!(unescape(b"test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
     }
 
     #[test]
     fn test_unescape_none() {
         let mut dst = String::new();
 
-        unescape("test", &mut dst).unwrap();
+        unescape(b"test", &mut dst).unwrap();
         assert_eq!(dst, "test");
     }
 
@@ -154,57 +154,57 @@ mod test {
     fn test_unescape() {
         let mut dst = String::new();
 
-        unescape("test\\\\test", &mut dst).unwrap();
+        unescape(b"test\\\\test", &mut dst).unwrap();
         assert_eq!(dst, "test\\test");
 
         let mut dst = String::new();
 
-        unescape("test\\/test", &mut dst).unwrap();
+        unescape(b"test\\/test", &mut dst).unwrap();
         assert_eq!(dst, "test/test");
 
         let mut dst = String::new();
 
-        unescape("test\\stest", &mut dst).unwrap();
+        unescape(b"test\\stest", &mut dst).unwrap();
         assert_eq!(dst, "test test");
 
         let mut dst = String::new();
 
-        unescape("test\\ptest", &mut dst).unwrap();
+        unescape(b"test\\ptest", &mut dst).unwrap();
         assert_eq!(dst, "test|test");
 
         let mut dst = String::new();
 
-        unescape("test\\atest", &mut dst).unwrap();
+        unescape(b"test\\atest", &mut dst).unwrap();
         assert_eq!(dst, "test\x07test");
 
         let mut dst = String::new();
 
-        unescape("test\\btest", &mut dst).unwrap();
+        unescape(b"test\\btest", &mut dst).unwrap();
         assert_eq!(dst, "test\x08test");
 
         let mut dst = String::new();
 
-        unescape("test\\ftest", &mut dst).unwrap();
+        unescape(b"test\\ftest", &mut dst).unwrap();
         assert_eq!(dst, "test\x0Ctest");
 
         let mut dst = String::new();
 
-        unescape("test\\ntest", &mut dst).unwrap();
+        unescape(b"test\\ntest", &mut dst).unwrap();
         assert_eq!(dst, "test\ntest");
 
         let mut dst = String::new();
 
-        unescape("test\\rtest", &mut dst).unwrap();
+        unescape(b"test\\rtest", &mut dst).unwrap();
         assert_eq!(dst, "test\rtest");
 
         let mut dst = String::new();
 
-        unescape("test\\ttest", &mut dst).unwrap();
+        unescape(b"test\\ttest", &mut dst).unwrap();
         assert_eq!(dst, "test\ttest");
 
         let mut dst = String::new();
 
-        unescape("test\\vtest", &mut dst).unwrap();
+        unescape(b"test\\vtest", &mut dst).unwrap();
         assert_eq!(dst, "test\x0Btest");
     }
 
@@ -212,7 +212,7 @@ mod test {
     fn test_unescape_mixed() {
         let mut dst = String::new();
 
-        unescape("test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest", &mut dst).unwrap();
+        unescape(b"test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest", &mut dst).unwrap();
         assert_eq!(dst, "test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest");
     }
 
@@ -220,6 +220,6 @@ mod test {
     fn test_unescape_error() {
         let mut dst = String::new();
 
-        assert!(matches!(unescape("test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
+        assert!(matches!(unescape(b"test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
     }
 }
