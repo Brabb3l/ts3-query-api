@@ -11,6 +11,8 @@ pub enum ParseError {
     // token parse errors
     #[error("Format error: {0}")]
     FromUtf8(#[from] std::string::FromUtf8Error),
+    #[error("Format error: {0}")]
+    Utf8(#[from] std::str::Utf8Error),
     #[error("Error while parsing int: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
     #[error("Error while parsing float: {0}")]

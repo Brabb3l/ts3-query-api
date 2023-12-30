@@ -20,33 +20,35 @@ pub fn escape(src: &str, dst: &mut String) {
 }
 
 pub fn unescape(src: &[u8], dst: &mut String) -> Result<(), ParseError> {
+    let src = std::str::from_utf8(src)
+        .map_err(ParseError::Utf8)?;
     let mut escape = false;
 
-    for c in src {
+    for c in src.chars() {
         if escape {
             match c {
-                b'\\' => dst.push('\\'),
-                b'/' => dst.push('/'),
-                b's' => dst.push(' '),
-                b'p' => dst.push('|'),
-                b'a' => dst.push('\x07'),
-                b'b' => dst.push('\x08'),
-                b'f' => dst.push('\x0C'),
-                b'n' => dst.push('\n'),
-                b'r' => dst.push('\r'),
-                b't' => dst.push('\t'),
-                b'v' => dst.push('\x0B'),
+                '\\' => dst.push('\\'),
+                '/' => dst.push('/'),
+                's' => dst.push(' '),
+                'p' => dst.push('|'),
+                'a' => dst.push('\x07'),
+                'b' => dst.push('\x08'),
+                'f' => dst.push('\x0C'),
+                'n' => dst.push('\n'),
+                'r' => dst.push('\r'),
+                't' => dst.push('\t'),
+                'v' => dst.push('\x0B'),
                 _ => {
                     dst.push('\\');
-                    dst.push(*c as char);
+                    dst.push(c);
                 },
             }
 
             escape = false;
-        } else if *c == b'\\' {
+        } else if c == '\\' {
             escape = true;
         } else {
-            dst.push(*c as char);
+            dst.push(c);
         }
     }
 
