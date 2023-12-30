@@ -293,7 +293,7 @@ ts_response! {
 
 ts_response! {
     ClientListBadgesEntry {
-        badges("client_badges"): Option<Badges>
+        badges("client_badges"): Badges = Badges::default(),
     }
 }
 
