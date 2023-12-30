@@ -128,7 +128,7 @@ macro_rules! decode_key {
 }
 
 macro_rules! decode_type {
-    (Inline<$type:tt$(, $sg:tt)?>) => { $type $(<$sg>)? };
+    (Inline<$type:tt$(, $sg:tt $(, $sg2:tt)?)?>) => { $type $(<$sg$(<$sg2>)?>)? };
     ($type:ident $(<$generics:tt>)?) => { $type $(<$generics>)? };
 }
 
@@ -177,12 +177,12 @@ macro_rules! decode_advance {
 macro_rules! ts_response {
     (
         $type:ident $(<$lifetime:lifetime>)? {
-            $($field:ident$(($opt_name:expr))?: $field_type:ident $(<$generics:tt $(, $sg:tt)?>)? $(= $default:expr)?),* $(,)?
+            $($field:ident$(($opt_name:expr))?: $field_type:ident $(<$generics:tt $(, $sg:tt)*>)? $(= $default:expr)?),* $(,)?
         }
     ) => {
         #[derive(Debug)]
         pub struct $type $(<$lifetime>)? {
-            $(pub $field: crate::macros::decode_type!($field_type $(<$generics$(, $sg)?>)?)),*
+            $(pub $field: crate::macros::decode_type!($field_type $(<$generics$(, $sg)*>)?)),*
         }
 
         impl $(<$lifetime>)? crate::parser::Decode for $type $(<$lifetime>)? {

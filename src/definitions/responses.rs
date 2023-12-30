@@ -204,6 +204,7 @@ ts_response! {
 
 ts_response! {
     ChannelPermission<'a> {
+        channel_id("cid"): u32,
         perm: Inline<Permission, 'a>,
         perm_negated("permnegated"): bool,
         perm_skip("permskip"): bool,

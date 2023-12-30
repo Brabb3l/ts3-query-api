@@ -51,7 +51,7 @@ ts_response! {
         integrations("client_integrations"): Option<String>,
         flag_avatar("client_flag_avatar"): Option<String>,
 
-        away("client_away"): bool,
+        away("client_away"): bool = false,
         away_message("client_away_message"): Option<String>,
 
         meta_data("client_meta_data"): Option<String>,
@@ -77,6 +77,9 @@ ts_response! {
 
         needed_serverquery_view_power("client_needed_serverquery_view_power"): u32,
         channel_group_inherited_channel_id("client_channel_group_inherited_channel_id"): u32,
+
+        // ts5 only
+        user_tag("client_user_tag"): Option<String>,
     }
 }
 
