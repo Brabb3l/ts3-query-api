@@ -19,7 +19,7 @@ ts_response! {
         invoker_uid("invokeruid"): Option<String>,
 
         client_ids("clid"): Vec<u32>,
-        reason_id("reasonid"): ReasonId,
+        reason_id("reasonid"): ReasonId = ReasonId::Move,
         reason_msg("reasonmsg"): Option<String>,
 
         channel_to_id("ctid"): u32,
@@ -30,7 +30,7 @@ ts_response! {
     ClientEnterViewEvent {
         client_id("clid"): u32,
 
-        reason_id("reasonid"): ReasonId,
+        reason_id("reasonid"): ReasonId = ReasonId::JoinChannel,
         reason_msg("reasonmsg"): Option<String>,
 
         channel_from_id("cfid"): u32,
@@ -46,7 +46,7 @@ ts_response! {
         country("client_country"): Option<String>,
         badges("client_badges"): Badges = Badges::default(),
         signed_badges("client_signed_badges"): Vec<String>,
-        myteamspeak_id("client_myteamspeak_id"): String,
+        myteamspeak_id("client_myteamspeak_id"): Option<String>,
         myteamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
         integrations("client_integrations"): Option<String>,
         flag_avatar("client_flag_avatar"): Option<String>,
@@ -154,7 +154,7 @@ ts_response! {
         invoker_uid("invokeruid"): Option<String>,
 
         id("cid"): u32,
-        reason_id("reasonid"): ReasonId,
+        reason_id("reasonid"): ReasonId = ReasonId::Edit,
 
         name("channel_name"): Option<String>,
 
@@ -192,7 +192,7 @@ ts_response! {
         invoker_uid("invokeruid"): Option<String>,
 
         id("cid"): u32,
-        reason_id("reasonid"): ReasonId,
+        reason_id("reasonid"): ReasonId = ReasonId::Move,
 
         parent_id("cpid"): u32,
         order: u32,
@@ -217,7 +217,7 @@ ts_response! {
         invoker_name("invokername"): String,
         invoker_uid("invokeruid"): Option<String>,
 
-        reason_id("reasonid"): ReasonId,
+        reason_id("reasonid"): ReasonId = ReasonId::Edit,
 
         name("virtualserver_name"): Option<String>,
         nickname("virtualserver_nickname"): Option<String>,

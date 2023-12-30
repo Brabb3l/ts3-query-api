@@ -57,7 +57,7 @@ ts_enum! {
         // ???
         Leave = 8,
         // ???
-        ServerEdit = 10,
+        Edit = 10,
         ServerShutdown = 11,
     }
 }
