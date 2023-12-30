@@ -82,9 +82,9 @@ ts_response! {
 
 ts_response! {
     ClientLeftViewEvent {
-        invoker_id("invokerid"): u32,
-        invoker_name("invokername"): String,
-        invoker_uid("invokeruid"): String,
+        invoker_id("invokerid"): Option<u32>,
+        invoker_name("invokername"): Option<String>,
+        invoker_uid("invokeruid"): Option<String>,
 
         client_id("clid"): u32,
         reason_id("reasonid"): ReasonId,
@@ -109,28 +109,28 @@ ts_response! {
 
         name_phonetic("channel_name_phonetic"): Option<String>,
         topic("channel_topic"): Option<String>,
-        icon_id("channel_icon_id"): u32,
+        icon_id("channel_icon_id"): Option<u32>,
 
         codec("channel_codec"): Codec = Codec::OpusVoice,
         codec_quality("channel_codec_quality"): u8 = 6,
-        codec_latency_factor("channel_codec_latency_factor"): u32,
+        codec_latency_factor("channel_codec_latency_factor"): u32 = 1,
         codec_is_unencrypted("channel_codec_is_unencrypted"): bool,
 
-        max_clients("channel_maxclients"): u32,
-        max_family_clients("channel_maxfamilyclients"): u32,
+        max_clients("channel_maxclients"): i32 = -1,
+        max_family_clients("channel_maxfamilyclients"): i32 = -1,
         order("channel_order"): u32,
 
-        flag_permanent("channel_flag_permanent"): bool,
-        flag_semi_permanent("channel_flag_semi_permanent"): bool,
-        flag_default("channel_flag_default"): bool,
-        flag_max_clients_unlimited("channel_flag_maxclients_unlimited"): bool,
+        flag_permanent("channel_flag_permanent"): bool = false,
+        flag_semi_permanent("channel_flag_semi_permanent"): bool = false,
+        flag_default("channel_flag_default"): bool = false,
+        flag_max_clients_unlimited("channel_flag_maxclients_unlimited"): bool = true,
         flag_max_family_clients_unlimited("channel_flag_maxfamilyclients_unlimited"): bool,
         flag_max_family_clients_inherited("channel_flag_maxfamilyclients_inherited"): bool,
-        flag_password("channel_flag_password"): bool,
+        flag_password("channel_flag_password"): bool = false,
 
-        needed_talk_power("channel_needed_talk_power"): u32,
+        needed_talk_power("channel_needed_talk_power"): u32 = 0,
 
-        delete_delay("channel_delete_delay"): u32,
+        delete_delay("channel_delete_delay"): u32 = 0,
     }
 }
 
