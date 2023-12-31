@@ -324,7 +324,7 @@ impl QueryClient {
     pub async fn channel_create(
         &self,
         name: &str,
-        properties: &[ChannelProperty<'_>]
+        properties: &[ChannelProperty]
     ) -> Result<u32, QueryError> {
         let mut command = Command::new("channelcreate")
             .arg("channel_name", name)?;
@@ -332,7 +332,7 @@ impl QueryClient {
         for property in properties {
             let (key, value) = property.contents();
 
-            command = command.arg(key, value)?;
+            command = command.arg(key.as_ref(), value)?;
         }
 
         self.send_command::<ChannelId>(command).await.map(|v| v.id)
@@ -349,7 +349,7 @@ impl QueryClient {
     pub async fn channel_edit(
         &self,
         channel_id: u32,
-        properties: &[ChannelProperty<'_>],
+        properties: &[ChannelProperty],
     ) -> Result<(), QueryError> {
         let mut command = Command::new("channeledit")
             .arg("cid", channel_id)?;
@@ -357,7 +357,7 @@ impl QueryClient {
         for property in properties {
             let (key, value) = property.contents();
 
-            command = command.arg(key, value)?;
+            command = command.arg(key.as_ref(), value)?;
         }
 
         self.send_command_no_response(command).await

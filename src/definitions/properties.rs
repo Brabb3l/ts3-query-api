@@ -2,13 +2,13 @@ use crate::macros::properties;
 use crate::parser::Encode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PropertyType<'a> {
-    Str(&'a str),
+pub enum PropertyType {
+    Str(String),
     Int(u32),
     Bool(bool),
 }
 
-impl Encode for PropertyType<'_> {
+impl Encode for PropertyType {
     fn encode(&self, buf: &mut String) -> std::fmt::Result {
         match self {
             PropertyType::Str(val) => val.encode(buf),

@@ -1,6 +1,6 @@
 macro_rules! property {
     ($value_name:ident, str) => {
-        PropertyType::Str($value_name)
+        PropertyType::Str($value_name.clone())
     };
     ($value_name:ident, bool) => {
         PropertyType::Bool(*$value_name)
@@ -12,7 +12,7 @@ macro_rules! property {
 
 macro_rules! property_type {
     (str) => {
-        &'a str
+        String
     };
     (bool) => {
         bool
@@ -28,17 +28,17 @@ macro_rules! properties {
     }) => {
         #[allow(dead_code)]
         #[derive(Debug, Clone, PartialEq, Eq)]
-        pub enum $type<'a> {
+        pub enum $type {
             $($name($crate::macros::property_type!($ty))),*,
-            Custom(&'a str, PropertyType<'a>),
+            Custom(String, PropertyType),
         }
 
         #[allow(dead_code)]
-        impl<'a> $type<'a> {
-            pub fn contents(&'a self) -> (&'a str, PropertyType<'a>) {
+        impl $type {
+            pub fn contents(&self) -> (std::borrow::Cow<'_, str>, PropertyType) {
                 let name = match self {
-                    $( $type::$name { .. } => $value, )*
-                    $type::Custom(name, _) => name,
+                    $( $type::$name { .. } => std::borrow::Cow::from($value), )*
+                    $type::Custom(name, _) => std::borrow::Cow::from(name),
                 };
 
                 let value = match self {
