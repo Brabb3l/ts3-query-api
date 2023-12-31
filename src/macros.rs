@@ -5,7 +5,7 @@ macro_rules! property {
     ($value_name:ident, bool) => {
         PropertyType::Bool(*$value_name)
     };
-    ($value_name:ident, u32) => {
+    ($value_name:ident, i32) => {
         PropertyType::Int(*$value_name)
     };
 }
@@ -17,8 +17,24 @@ macro_rules! property_type {
     (bool) => {
         bool
     };
-    (u32) => {
-        u32
+    (i32) => {
+        i32
+    }
+}
+
+macro_rules! property_parse {
+    ($value:expr, bool) => {
+        match $value {
+            "false" => false,
+            "true" => true,
+            _ => return Err($crate::error::ParseError::InvalidValue(std::borrow::Cow::from($value.to_string()))),
+        }
+    };
+    ($value:expr, i32) => {
+        $value.parse()?
+    };
+    ($value:expr, str) => {
+        $value.to_string()
     }
 }
 
@@ -35,6 +51,19 @@ macro_rules! properties {
 
         #[allow(dead_code)]
         impl $type {
+            pub fn parse(id: &str, value: &str, error_on_unknown: bool) -> Result<$type, $crate::error::ParseError> {
+                match id {
+                    $( $value => Ok($type::$name($crate::macros::property_parse!(value, $ty))), )*
+                    _ => if error_on_unknown {
+                        Err($crate::error::ParseError::UnknownChannelProperty {
+                            id: id.to_string(),
+                        })
+                    } else {
+                        Ok($type::Custom(id.to_owned(), PropertyType::Str(value.to_string())))
+                    }
+                }
+            }
+
             pub fn contents(&self) -> (std::borrow::Cow<'_, str>, PropertyType) {
                 let name = match self {
                     $( $type::$name { .. } => std::borrow::Cow::from($value), )*
@@ -319,6 +348,7 @@ macro_rules! flag_builder {
 
 pub(crate) use property;
 pub(crate) use property_type;
+pub(crate) use property_parse;
 pub(crate) use properties;
 
 pub(crate) use permission;

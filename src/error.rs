@@ -40,6 +40,8 @@ pub enum ParseError {
 
     #[error("Unknown permission: {id}")]
     UnknownPermission { id: String },
+    #[error("Unknown channel property: {id}")]
+    UnknownChannelProperty { id: String },
     #[error("Unknown event: {event} in {response}")]
     UnknownEvent { response: String, event: String },
 
