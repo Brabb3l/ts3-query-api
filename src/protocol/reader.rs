@@ -2,7 +2,7 @@ use crate::error::QueryError;
 use crate::event::Event;
 use crate::protocol::types::RawCommandResponse;
 use bytes::BytesMut;
-use log::{debug, error, log_enabled};
+use log::{debug, error, log_enabled, trace};
 use std::cmp::max;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
@@ -37,6 +37,8 @@ impl Reader {
 
     pub async fn run(mut self) -> Result<(), QueryError> {
         loop {
+            trace!("Start of reader loop");
+
             if let Err(e) = self.try_next().await {
                 error!("Connection closed: {:?}", e);
                 return Err(e);
@@ -54,6 +56,8 @@ impl Reader {
             if self.last_scan_pos >= self.receive_buffer.len() {
                 break;
             }
+
+            trace!("Checking Buffer: {:?}", self.receive_buffer);
 
             let pos = self.receive_buffer[self.last_scan_pos..]
                 .iter()
@@ -106,6 +110,7 @@ impl Reader {
                 let scrambled_data = self.receive_buffer.split_off(self.last_cr_pos);
                 let (status, remaining) = scrambled_data.split_at(pos - self.last_cr_pos);
 
+                self.last_scan_pos = self.last_cr_pos;
                 self.receive_buffer.extend_from_slice(remaining);
 
                 let status = std::str::from_utf8(&status[..status.len() - 2])
@@ -133,6 +138,8 @@ impl Reader {
     }
 
     async fn wait_for_bytes(&mut self) -> Result<(), QueryError> {
+        trace!("Waiting for bytes");
+
         let read_bytes = self
             .reader
             .read(&mut self.read_buffer)

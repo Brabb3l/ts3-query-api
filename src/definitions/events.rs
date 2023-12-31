@@ -114,6 +114,8 @@ ts_response! {
         name_phonetic("channel_name_phonetic"): Option<String>,
         topic("channel_topic"): Option<String>,
         icon_id("channel_icon_id"): Option<i32>,
+        banner_gfx_url("channel_banner_gfx_url"): Option<String>,
+        banner_mode("channel_banner_mode"): Option<i32>,
 
         codec("channel_codec"): Codec = Codec::OpusVoice,
         codec_quality("channel_codec_quality"): i32 = 6,
@@ -135,6 +137,9 @@ ts_response! {
         needed_talk_power("channel_needed_talk_power"): i32 = 0,
 
         delete_delay("channel_delete_delay"): i32 = 0,
+
+        // ts5 only
+        channel_unique_identifier("channel_unique_identifier"): Option<String>,
     }
 }
 
