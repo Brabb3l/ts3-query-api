@@ -70,7 +70,7 @@ impl serde::Serialize for ChannelProperty {
         let value = match value {
             PropertyType::Str(val) => val,
             PropertyType::Int(val) => val.to_string(),
-            PropertyType::Bool(val) => val.to_string()
+            PropertyType::Bool(val) => val.to_string(),
         };
 
         state.serialize_field("value", &value)?;
@@ -80,7 +80,9 @@ impl serde::Serialize for ChannelProperty {
 
 #[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for ChannelProperty {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<ChannelProperty, D::Error> {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<ChannelProperty, D::Error> {
         #[derive(serde::Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
         enum Field {
@@ -97,16 +99,24 @@ impl<'de> serde::Deserialize<'de> for ChannelProperty {
                 formatter.write_str("struct ChannelProperty")
             }
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de> {
-                let id = seq.next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements"))?;
-                let value = seq.next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements"))?;
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let id = seq.next_element()?.ok_or_else(|| {
+                    serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements")
+                })?;
+                let value = seq.next_element()?.ok_or_else(|| {
+                    serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements")
+                })?;
 
                 ChannelProperty::parse(id, value, true).map_err(serde::de::Error::custom)
             }
 
-            fn visit_map<V: serde::de::MapAccess<'de>>(self, mut map: V) -> Result<Self::Value, V::Error> {
+            fn visit_map<V: serde::de::MapAccess<'de>>(
+                self,
+                mut map: V,
+            ) -> Result<Self::Value, V::Error> {
                 let mut id: Option<String> = None;
                 let mut value: Option<String> = None;
 

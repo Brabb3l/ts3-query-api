@@ -17,7 +17,6 @@ ts_enum! {
     }
 }
 
-
 ts_enum! {
     Codec {
         SpeexNarrowband = 0,

@@ -19,7 +19,7 @@ macro_rules! property_type {
     };
     (i32) => {
         i32
-    }
+    };
 }
 
 macro_rules! property_parse {
@@ -27,7 +27,11 @@ macro_rules! property_parse {
         match $value {
             "false" => false,
             "true" => true,
-            _ => return Err($crate::error::ParseError::InvalidValue(std::borrow::Cow::from($value.to_string()))),
+            _ => {
+                return Err($crate::error::ParseError::InvalidValue(
+                    std::borrow::Cow::from($value.to_string()),
+                ))
+            }
         }
     };
     ($value:expr, i32) => {
@@ -35,7 +39,7 @@ macro_rules! property_parse {
     };
     ($value:expr, str) => {
         $value.to_string()
-    }
+    };
 }
 
 macro_rules! properties {
@@ -96,7 +100,7 @@ macro_rules! permission_type {
     };
     (i32) => {
         i32
-    }
+    };
 }
 
 macro_rules! permission_parse {
@@ -104,12 +108,16 @@ macro_rules! permission_parse {
         match $value {
             0 => false,
             1 => true,
-            _ => return Err($crate::error::ParseError::InvalidValue(std::borrow::Cow::from($value.to_string()))),
+            _ => {
+                return Err($crate::error::ParseError::InvalidValue(
+                    std::borrow::Cow::from($value.to_string()),
+                ))
+            }
         }
     };
     ($value:expr, i32) => {
         $value
-    }
+    };
 }
 
 macro_rules! permissions {
@@ -160,8 +168,12 @@ macro_rules! permissions {
 }
 
 macro_rules! decode_key {
-    ($key:ident) => { stringify!($key) };
-    ($key:ident, $opt_name:expr) => { $opt_name };
+    ($key:ident) => {
+        stringify!($key)
+    };
+    ($key:ident, $opt_name:expr) => {
+        $opt_name
+    };
 }
 
 macro_rules! decode_type {
@@ -346,23 +358,23 @@ macro_rules! flag_builder {
     };
 }
 
-pub(crate) use property;
-pub(crate) use property_type;
-pub(crate) use property_parse;
 pub(crate) use properties;
+pub(crate) use property;
+pub(crate) use property_parse;
+pub(crate) use property_type;
 
 pub(crate) use permission;
-pub(crate) use permission_type;
 pub(crate) use permission_parse;
+pub(crate) use permission_type;
 pub(crate) use permissions;
 
-pub(crate) use ts_response;
+pub(crate) use decode_advance;
 pub(crate) use decode_key;
 pub(crate) use decode_type;
-pub(crate) use decode_advance;
+pub(crate) use ts_response;
 
 pub(crate) use ts_enum;
 
+pub(crate) use flag_builder;
 pub(crate) use opt_builder;
 pub(crate) use opt_builder_func;
-pub(crate) use flag_builder;

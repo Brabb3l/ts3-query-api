@@ -1,8 +1,8 @@
-use std::borrow::Cow;
 use crate::definitions::*;
 use crate::error::ParseError;
 use crate::macros::ts_response;
 use crate::parser::DecodeValue;
+use std::borrow::Cow;
 
 ts_response! {
     Status {
@@ -385,7 +385,7 @@ ts_response! {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Badges {
     pub overwolf: bool,
-    pub badges: Vec<String>
+    pub badges: Vec<String>,
 }
 
 impl DecodeValue for Badges {
@@ -396,27 +396,29 @@ impl DecodeValue for Badges {
         for part in value.split(':') {
             let mut split = part.split('=');
 
-            let key = split.next().ok_or_else(|| ParseError::MissingKey(part.to_owned()))?;
-            let value = split.next().ok_or_else(|| ParseError::MissingKey(part.to_owned()))?;
+            let key = split
+                .next()
+                .ok_or_else(|| ParseError::MissingKey(part.to_owned()))?;
+            let value = split
+                .next()
+                .ok_or_else(|| ParseError::MissingKey(part.to_owned()))?;
 
             match key {
                 "Overwolf" => {
                     overwolf = value == "1";
-                },
+                }
                 "badges" => {
                     badges = value.split(',').map(|v| v.to_owned()).collect();
-                },
+                }
                 _ => {
-                    return Err(ParseError::Other(
-                        Cow::from(format!("unknown key: {}", key))
-                    ));
+                    return Err(ParseError::Other(Cow::from(format!(
+                        "unknown key: {}",
+                        key
+                    ))));
                 }
             }
         }
 
-        Ok(Self {
-            overwolf,
-            badges
-        })
+        Ok(Self { overwolf, badges })
     }
 }

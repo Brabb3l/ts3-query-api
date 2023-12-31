@@ -1,7 +1,7 @@
-use std::borrow::Cow;
-use log::{log_enabled, warn};
 use crate::error::ParseError;
 use crate::parser::escape::unescape;
+use log::{log_enabled, warn};
+use std::borrow::Cow;
 
 pub struct Decoder<'a> {
     buf: &'a [u8],
@@ -38,8 +38,8 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn decode<T>(&mut self) -> Result<T, ParseError>
-        where
-            T: Decode,
+    where
+        T: Decode,
     {
         T::decode(self)
     }
@@ -53,8 +53,8 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn decode_with_name<T>(&mut self) -> Result<T, ParseError>
-        where
-            T: Decode,
+    where
+        T: Decode,
     {
         let _ = self.decode_name()?;
         let value = T::decode(self)?;
@@ -81,8 +81,8 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn advance<T>(&mut self, key: &'a str) -> Result<Option<T>, ParseError>
-        where
-            T: DecodeValue,
+    where
+        T: DecodeValue,
     {
         match self.advance_internal(key) {
             Ok(Some(value)) => T::decode(key, value).map(Some),
@@ -93,8 +93,8 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn advance_or_none<T>(&mut self, key: &'a str) -> Result<Option<T>, ParseError>
-        where
-            T: DecodeValue,
+    where
+        T: DecodeValue,
     {
         match self.advance_internal(key) {
             Ok(Some(value)) => T::decode(key, value).map(Some),
@@ -104,15 +104,15 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn advance_or_default<T>(&mut self, key: &'a str) -> Result<T, ParseError>
-        where
-            T: DecodeValue + Default,
+    where
+        T: DecodeValue + Default,
     {
         self.advance_or_none(key).map(|v| v.unwrap_or_default())
     }
 
     pub fn advance_or_err<T>(&mut self, key: &'a str) -> Result<T, ParseError>
-        where
-            T: DecodeValue,
+    where
+        T: DecodeValue,
     {
         match self.advance(key) {
             Ok(Some(value)) => Ok(value),
@@ -156,16 +156,20 @@ impl<'a> Decoder<'a> {
             Self::ASSIGN => {
                 self.pos += 1;
                 Separator::Assign
-            },
+            }
             Self::PAIR_SEP => {
                 self.pos += 1;
                 Separator::Pair
-            },
+            }
             Self::LIST_SEP => {
                 self.pos += 1;
                 Separator::List
-            },
-            _ => return Err(ParseError::UnexpectedToken((self.buf[pos] as char).to_string()))
+            }
+            _ => {
+                return Err(ParseError::UnexpectedToken(
+                    (self.buf[pos] as char).to_string(),
+                ))
+            }
         };
 
         Ok(())
@@ -201,22 +205,24 @@ impl<'a> Decoder<'a> {
 
                 self.parse_sep()?;
 
-                Ok(Pair { key, value: Some(value) })
-            },
+                Ok(Pair {
+                    key,
+                    value: Some(value),
+                })
+            }
             _ => Ok(Pair { key, value: None }),
         }
     }
 
     fn advance_internal(&mut self, key: &'a str) -> Result<Option<String>, ParseError> {
-        let scope = self.entries.last_mut()
-            .ok_or(ParseError::NoScope)?;
+        let scope = self.entries.last_mut().ok_or(ParseError::NoScope)?;
 
         if let Some(i) = scope.iter().position(|k| k.key == key) {
             return Ok(scope.remove(i).value);
         }
 
         if self.is_eof() {
-            return Err(ParseError::Eof)
+            return Err(ParseError::Eof);
         }
 
         loop {
@@ -225,15 +231,16 @@ impl<'a> Decoder<'a> {
             if pair.key == key {
                 return Ok(pair.value);
             } else {
-                self.entries.last_mut()
+                self.entries
+                    .last_mut()
                     .ok_or(ParseError::NoScope)?
                     .push(pair);
             }
 
             match self.cur_sep {
-                Separator::Pair => {},
+                Separator::Pair => {}
                 Separator::Eof => return Err(ParseError::Eof),
-                _ => return Err(ParseError::InvalidSeparator(self.cur_sep))
+                _ => return Err(ParseError::InvalidSeparator(self.cur_sep)),
             }
         }
     }
@@ -247,27 +254,27 @@ impl Drop for Decoder<'_> {
 
 pub trait Decode {
     fn decode(decoder: &mut Decoder) -> Result<Self, ParseError>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 pub trait DecodeValue {
     fn decode(key: &str, value: String) -> Result<Self, ParseError>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 pub trait DecodeInto {
     fn decode_into(self, decoder: &mut Decoder) -> Result<Self, ParseError>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 pub trait DecodeCustomInto<T> {
     fn decode_into<F>(self, decoder: &mut Decoder, gen: F) -> Result<Self, ParseError>
-        where
-            F: Fn(&mut Decoder) -> Result<T, ParseError>,
-            Self: Sized;
+    where
+        F: Fn(&mut Decoder) -> Result<T, ParseError>,
+        Self: Sized;
 }
 
 impl DecodeValue for String {
@@ -281,7 +288,7 @@ impl DecodeValue for bool {
         match value.as_ref() {
             "1" => Ok(true),
             "0" => Ok(false),
-            _ => Err(ParseError::ParseIntBool(Cow::from(value)))
+            _ => Err(ParseError::ParseIntBool(Cow::from(value))),
         }
     }
 }
@@ -296,9 +303,9 @@ impl<T: Decode> Decode for Vec<T> {
             vec.push(T::decode(decoder)?);
 
             match decoder.last_sep() {
-                Separator::List => {},
+                Separator::List => {}
                 Separator::Eof => break,
-                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep()))
+                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep())),
             }
         }
 
@@ -316,9 +323,9 @@ impl<T: Decode> DecodeInto for Vec<T> {
             self.push(T::decode(decoder)?);
 
             match decoder.last_sep() {
-                Separator::List => {},
+                Separator::List => {}
                 Separator::Eof => break,
-                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep()))
+                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep())),
             }
         }
 
@@ -330,8 +337,8 @@ impl<T: Decode> DecodeInto for Vec<T> {
 
 impl<T> DecodeCustomInto<T> for Vec<T> {
     fn decode_into<F>(mut self, decoder: &mut Decoder, gen: F) -> Result<Self, ParseError>
-        where
-            F: Fn(&mut Decoder) -> Result<T, ParseError>
+    where
+        F: Fn(&mut Decoder) -> Result<T, ParseError>,
     {
         decoder.push_scope();
 
@@ -339,9 +346,9 @@ impl<T> DecodeCustomInto<T> for Vec<T> {
             self.push(gen(decoder)?);
 
             match decoder.last_sep() {
-                Separator::List => {},
+                Separator::List => {}
                 Separator::Eof => break,
-                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep()))
+                _ => return Err(ParseError::InvalidSeparator(decoder.last_sep())),
             }
         }
 
@@ -389,8 +396,8 @@ impl_decode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128, f32, f64);
 
 #[cfg(test)]
 mod test {
-    use crate::macros::ts_response;
     use super::*;
+    use crate::macros::ts_response;
 
     #[test]
     fn test_decode_name() {
@@ -567,7 +574,9 @@ mod test {
             }
         }
 
-        let mut decoder = Decoder::new(b"some_string=hello some_integer=69 some_bool=1|some_integer=420 some_bool=0");
+        let mut decoder = Decoder::new(
+            b"some_string=hello some_integer=69 some_bool=1|some_integer=420 some_bool=0",
+        );
         let response = decoder.decode::<Test>().unwrap();
 
         assert_eq!(response.some_string, "hello");

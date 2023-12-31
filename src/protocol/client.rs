@@ -1,16 +1,16 @@
-use tokio::net::{TcpStream, ToSocketAddrs};
-use tokio::spawn;
 use crate::definitions::Status;
 use crate::error::{ParseError, QueryError};
 use crate::event::Event;
 use crate::parser::{Command, Decode, DecodeCustomInto, DecodeInto, Decoder};
 use crate::protocol::connection::Connection;
 use crate::protocol::types::{RawCommandRequest, RawCommandResponse};
+use tokio::net::{TcpStream, ToSocketAddrs};
+use tokio::spawn;
 
 pub struct QueryClient {
     command_tx: flume::Sender<RawCommandRequest>,
     event_rx: flume::Receiver<Event>,
-    shutdown_tx: flume::Sender<()>
+    shutdown_tx: flume::Sender<()>,
 }
 
 impl QueryClient {
@@ -23,7 +23,13 @@ impl QueryClient {
         let (event_tx, event_rx) = flume::unbounded::<Event>();
         let (shutdown_tx, shutdown_rx) = flume::unbounded::<()>();
 
-        let mut connection = Connection::new(stream, event_tx, command_rx, command_tx.clone(), shutdown_rx);
+        let mut connection = Connection::new(
+            stream,
+            event_tx,
+            command_rx,
+            command_tx.clone(),
+            shutdown_rx,
+        );
 
         connection.read_welcome_message().await?;
 
@@ -46,8 +52,7 @@ impl QueryClient {
         let response = self.send_command_raw(command).await?;
         let mut decoder = Decoder::new(response.content());
 
-        decoder.decode()
-            .map_err(QueryError::ParseError)
+        decoder.decode().map_err(QueryError::ParseError)
     }
 
     pub async fn send_command_into<I: DecodeInto>(
@@ -68,8 +73,8 @@ impl QueryClient {
         dst: I,
         gen: F,
     ) -> Result<I, QueryError>
-        where
-            F: Fn(&mut Decoder) -> Result<T, ParseError>,
+    where
+        F: Fn(&mut Decoder) -> Result<T, ParseError>,
     {
         let response = self.send_command_raw(command).await?;
         let mut decoder = Decoder::new(response.content());
@@ -79,27 +84,40 @@ impl QueryClient {
     }
 
     pub async fn wait_for_event(&self) -> Result<Event, QueryError> {
-        self.event_rx.recv_async().await
+        self.event_rx
+            .recv_async()
+            .await
             .map_err(|_| QueryError::ConnectionClosed)
     }
 
-    async fn send_command_internal(&self, mut command: String) -> Result<RawCommandResponse, QueryError> {
+    async fn send_command_internal(
+        &self,
+        mut command: String,
+    ) -> Result<RawCommandResponse, QueryError> {
         let (response_tx, response_rx) = flume::unbounded::<RawCommandResponse>();
 
         command.push_str("\n\r");
 
-        self.command_tx.send_async(RawCommandRequest {
-            data: command,
-            response_tx
-        }).await.map_err(|_| QueryError::ConnectionClosed)?;
+        self.command_tx
+            .send_async(RawCommandRequest {
+                data: command,
+                response_tx,
+            })
+            .await
+            .map_err(|_| QueryError::ConnectionClosed)?;
 
-        let response = response_rx.recv_async().await
+        let response = response_rx
+            .recv_async()
+            .await
             .map_err(|_| QueryError::ConnectionClosed)?;
 
         Ok(response)
     }
 
-    pub async fn send_command_raw(&self, command: Command) -> Result<RawCommandResponse, QueryError> {
+    pub async fn send_command_raw(
+        &self,
+        command: Command,
+    ) -> Result<RawCommandResponse, QueryError> {
         let command = command.into();
         let response = self.send_command_internal(command).await?;
 
@@ -116,7 +134,6 @@ impl QueryClient {
             })
         }
     }
-
 }
 
 impl Drop for QueryClient {

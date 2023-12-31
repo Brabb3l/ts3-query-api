@@ -1,7 +1,7 @@
 mod client;
 mod connection;
 mod reader;
-mod writer;
 mod types;
+mod writer;
 
 pub use client::*;

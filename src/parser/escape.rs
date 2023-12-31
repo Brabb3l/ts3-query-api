@@ -20,8 +20,7 @@ pub fn escape(src: &str, dst: &mut String) {
 }
 
 pub fn unescape(src: &[u8], dst: &mut String) -> Result<(), ParseError> {
-    let src = std::str::from_utf8(src)
-        .map_err(ParseError::Utf8)?;
+    let src = std::str::from_utf8(src).map_err(ParseError::Utf8)?;
     let mut escape = false;
 
     for c in src.chars() {
@@ -41,7 +40,7 @@ pub fn unescape(src: &[u8], dst: &mut String) -> Result<(), ParseError> {
                 _ => {
                     dst.push('\\');
                     dst.push(c);
-                },
+                }
             }
 
             escape = false;
@@ -53,7 +52,9 @@ pub fn unescape(src: &[u8], dst: &mut String) -> Result<(), ParseError> {
     }
 
     if escape {
-        Err(ParseError::MalformedEscapeSequence { src: dst.to_string() })
+        Err(ParseError::MalformedEscapeSequence {
+            src: dst.to_string(),
+        })
     } else {
         Ok(())
     }
@@ -133,15 +134,24 @@ mod test {
     fn test_escape_mixed() {
         let mut dst = String::new();
 
-        escape("test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest", &mut dst);
-        assert_eq!(dst, "test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest");
+        escape(
+            "test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest",
+            &mut dst,
+        );
+        assert_eq!(
+            dst,
+            "test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest"
+        );
     }
 
     #[test]
     fn test_escape_error() {
         let mut dst = String::new();
 
-        assert!(matches!(unescape(b"test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
+        assert!(matches!(
+            unescape(b"test\\", &mut dst),
+            Err(ParseError::MalformedEscapeSequence { .. })
+        ));
     }
 
     #[test]
@@ -214,14 +224,24 @@ mod test {
     fn test_unescape_mixed() {
         let mut dst = String::new();
 
-        unescape(b"test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest", &mut dst).unwrap();
-        assert_eq!(dst, "test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest");
+        unescape(
+            b"test\\\\test\\/test\\stest\\ptest\\atest\\btest\\ftest\\ntest\\rtest\\ttest\\vtest",
+            &mut dst,
+        )
+        .unwrap();
+        assert_eq!(
+            dst,
+            "test\\test/test test|test\x07test\x08test\x0Ctest\ntest\rtest\ttest\x0Btest"
+        );
     }
 
     #[test]
     fn test_unescape_error() {
         let mut dst = String::new();
 
-        assert!(matches!(unescape(b"test\\", &mut dst), Err(ParseError::MalformedEscapeSequence { .. })));
+        assert!(matches!(
+            unescape(b"test\\", &mut dst),
+            Err(ParseError::MalformedEscapeSequence { .. })
+        ));
     }
 }

@@ -1,5 +1,5 @@
-use crate::macros::ts_response;
 use super::*;
+use crate::macros::ts_response;
 
 ts_response! {
     TextMessageEvent {

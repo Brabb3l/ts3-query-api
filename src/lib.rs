@@ -23,16 +23,15 @@
 ///     Ok(())
 /// }
 /// ```
-
 pub mod requests;
 
-pub mod parser;
 pub mod definitions;
 pub mod event;
+pub mod parser;
 
 pub mod error;
 
-mod protocol;
 mod macros;
+mod protocol;
 
 pub use protocol::*;

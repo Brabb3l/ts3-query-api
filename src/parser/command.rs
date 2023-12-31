@@ -1,6 +1,6 @@
-use std::fmt::{Arguments, Display, Write};
 use crate::error::ParseError;
 use crate::parser::escape::escape;
+use std::fmt::{Arguments, Display, Write};
 
 pub struct Command {
     pub buf: String,
@@ -208,7 +208,7 @@ impl<'a> CommandListBuilder<'a> {
 }
 
 pub trait EncodeList {
-     fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), ParseError>;
+    fn encode_list(&self, builder: &mut CommandListBuilder) -> Result<(), ParseError>;
 }
 
 #[cfg(test)]
@@ -230,38 +230,40 @@ mod test {
     #[test]
     fn test_arg() {
         let command = Command::new("test")
-            .arg("key", "value").unwrap()
-            .arg("key2", 123).unwrap()
-            .arg("key3", true).unwrap()
-            .arg("key4", false).unwrap();
+            .arg("key", "value")
+            .unwrap()
+            .arg("key2", 123)
+            .unwrap()
+            .arg("key3", true)
+            .unwrap()
+            .arg("key4", false)
+            .unwrap();
 
         let command: String = command.into();
 
-        assert_eq!(
-            command,
-            "test key=value key2=123 key3=1 key4=0"
-        )
+        assert_eq!(command, "test key=value key2=123 key3=1 key4=0")
     }
 
     #[test]
     fn test_arg_list_single() {
         let command = Command::new("test")
-            .arg_list("key", &["value1"]).unwrap()
-            .arg_list("key2", &[123]).unwrap();
+            .arg_list("key", &["value1"])
+            .unwrap()
+            .arg_list("key2", &[123])
+            .unwrap();
 
         let command: String = command.into();
 
-        assert_eq!(
-            command,
-            "test key=value1 key2=123"
-        )
+        assert_eq!(command, "test key=value1 key2=123")
     }
 
     #[test]
     fn test_arg_list() {
         let command = Command::new("test")
-            .arg_list("key", &["value1", "value2", "value3"]).unwrap()
-            .arg_list("key2", &[123, 456, 789]).unwrap();
+            .arg_list("key", &["value1", "value2", "value3"])
+            .unwrap()
+            .arg_list("key2", &[123, 456, 789])
+            .unwrap();
 
         let command: String = command.into();
 
@@ -275,10 +277,20 @@ mod test {
     fn test_arg_multi_list() {
         let command = Command::new("test")
             .arg_multi_list(&[
-                Test { key: "value1", key2: "value2" },
-                Test { key: "value3", key2: "value4" },
-                Test { key: "value5", key2: "value6" },
-            ]).unwrap();
+                Test {
+                    key: "value1",
+                    key2: "value2",
+                },
+                Test {
+                    key: "value3",
+                    key2: "value4",
+                },
+                Test {
+                    key: "value5",
+                    key2: "value6",
+                },
+            ])
+            .unwrap();
 
         let command: String = command.into();
 
@@ -291,15 +303,14 @@ mod test {
     #[test]
     fn test_arg_multi_list_single() {
         let command = Command::new("test")
-            .arg_multi_list(&[
-                Test { key: "value1", key2: "value2" },
-            ]).unwrap();
+            .arg_multi_list(&[Test {
+                key: "value1",
+                key2: "value2",
+            }])
+            .unwrap();
 
         let command: String = command.into();
 
-        assert_eq!(
-            command,
-            "test key=value1 key2=value2"
-        )
+        assert_eq!(command, "test key=value1 key2=value2")
     }
 }

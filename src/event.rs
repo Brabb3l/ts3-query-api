@@ -32,14 +32,18 @@ impl Event {
             "notifychanneldeleted" => Event::ChannelDeleted(decoder.decode()?),
             "notifychanneledited" => Event::ChannelEdited(decoder.decode()?),
             "notifychannelmoved" => Event::ChannelMoved(decoder.decode()?),
-            "notifychanneldescriptionchanged" => Event::ChannelDescriptionChanged(decoder.decode()?),
+            "notifychanneldescriptionchanged" => {
+                Event::ChannelDescriptionChanged(decoder.decode()?)
+            }
             "notifychannelpasswordchanged" => Event::ChannelPasswordChanged(decoder.decode()?),
             "notifyserveredited" => Event::ServerEdited(decoder.decode()?),
             "notifytokenused" => Event::TokenUsed(decoder.decode()?),
-            _ => return Err(ParseError::UnknownEvent {
-                response: response.to_string(),
-                event: name.clone()
-            })
+            _ => {
+                return Err(ParseError::UnknownEvent {
+                    response: response.to_string(),
+                    event: name.clone(),
+                })
+            }
         })
     }
 }

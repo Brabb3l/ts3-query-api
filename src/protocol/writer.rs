@@ -1,8 +1,8 @@
+use crate::error::QueryError;
+use crate::protocol::types::{RawCommandRequest, RawCommandResponse};
 use log::debug;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
-use crate::error::QueryError;
-use crate::protocol::types::{RawCommandResponse, RawCommandRequest};
 
 pub(super) struct Writer {
     writer: OwnedWriteHalf,
@@ -14,7 +14,7 @@ impl Writer {
     pub fn new(
         writer: OwnedWriteHalf,
         response_rx: flume::Receiver<RawCommandResponse>,
-        command_rx: flume::Receiver<RawCommandRequest>
+        command_rx: flume::Receiver<RawCommandRequest>,
     ) -> Self {
         Self {
             writer,
@@ -25,7 +25,10 @@ impl Writer {
 
     pub async fn run(mut self) -> Result<(), QueryError> {
         loop {
-            let command = self.command_rx.recv_async().await
+            let command = self
+                .command_rx
+                .recv_async()
+                .await
                 .map_err(|_| QueryError::ConnectionClosed)?;
 
             self.write_command(command).await?;
@@ -35,13 +38,21 @@ impl Writer {
     async fn write_command(&mut self, command: RawCommandRequest) -> Result<(), QueryError> {
         debug!("[C->S] {}", &command.data[..command.data.len() - 2]);
 
-        self.writer.write_all(command.data.as_bytes()).await
+        self.writer
+            .write_all(command.data.as_bytes())
+            .await
             .map_err(QueryError::WriteError)?;
 
-        let response = self.response_rx.recv_async().await
+        let response = self
+            .response_rx
+            .recv_async()
+            .await
             .map_err(|_| QueryError::ConnectionClosed)?;
 
-        command.response_tx.send_async(response).await
+        command
+            .response_tx
+            .send_async(response)
+            .await
             .map_err(|_| QueryError::ConnectionClosed)?;
 
         Ok(())

@@ -801,7 +801,13 @@ impl serde::Serialize for Permission {
 
         let value = match pair.value {
             PermissionValue::Int(val) => val,
-            PermissionValue::Bool(val) => if val { 1 } else { 0 }
+            PermissionValue::Bool(val) => {
+                if val {
+                    1
+                } else {
+                    0
+                }
+            }
         };
 
         state.serialize_field("value", &value)?;
@@ -829,16 +835,24 @@ impl<'de> serde::Deserialize<'de> for Permission {
                 formatter.write_str("struct Permission")
             }
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where A: serde::de::SeqAccess<'de> {
-                let id = seq.next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements"))?;
-                let value = seq.next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements"))?;
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let id = seq.next_element()?.ok_or_else(|| {
+                    serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements")
+                })?;
+                let value = seq.next_element()?.ok_or_else(|| {
+                    serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements")
+                })?;
 
                 Permission::parse(id, value, true).map_err(serde::de::Error::custom)
             }
 
-            fn visit_map<V: serde::de::MapAccess<'de>>(self, mut map: V) -> Result<Self::Value, V::Error> {
+            fn visit_map<V: serde::de::MapAccess<'de>>(
+                self,
+                mut map: V,
+            ) -> Result<Self::Value, V::Error> {
                 let mut id: Option<String> = None;
                 let mut value: Option<i32> = None;
 
@@ -905,7 +919,10 @@ mod test {
         let perm = Permission::parse("unknown", 123, false);
 
         match perm {
-            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown".to_owned(), PermissionValue::Int(123))),
+            Ok(perm) => assert_eq!(
+                perm,
+                Permission::Custom("unknown".to_owned(), PermissionValue::Int(123))
+            ),
             Err(e) => panic!("Expected Ok, got '{}'", e),
         }
     }
@@ -915,7 +932,10 @@ mod test {
         let perm = Permission::parse("unknown", 1, false);
 
         match perm {
-            Ok(perm) => assert_eq!(perm, Permission::Custom("unknown".to_owned(), PermissionValue::Int(1))),
+            Ok(perm) => assert_eq!(
+                perm,
+                Permission::Custom("unknown".to_owned(), PermissionValue::Int(1))
+            ),
             Err(e) => panic!("Expected Ok, got '{}'", e),
         }
     }

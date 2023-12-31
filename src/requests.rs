@@ -1,9 +1,9 @@
-use std::borrow::Cow;
-use crate::error::QueryError;
-use crate::definitions::*;
 use crate::definitions::builder::{BanParams, ChannelListFlags, ClientListFlags};
+use crate::definitions::*;
+use crate::error::QueryError;
 use crate::parser::Command;
 use crate::QueryClient;
+use std::borrow::Cow;
 
 // TODO:
 // [X] apikeyadd
@@ -149,7 +149,6 @@ use crate::QueryClient;
 
 #[allow(dead_code)]
 impl QueryClient {
-
     pub async fn api_key_add(
         &self,
         scope: Scope,
@@ -164,12 +163,8 @@ impl QueryClient {
         self.send_command(command).await
     }
 
-    pub async fn api_key_delete(
-        &self,
-        id: i32,
-    ) -> Result<(), QueryError> {
-        let command = Command::new("apikeydel")
-            .arg("id", id)?;
+    pub async fn api_key_delete(&self, id: i32) -> Result<(), QueryError> {
+        let command = Command::new("apikeydel").arg("id", id)?;
 
         self.send_command_no_response(command).await
     }
@@ -180,7 +175,8 @@ impl QueryClient {
         start: Option<i32>,
         duration: Option<i32>,
     ) -> Result<Vec<ApiKey>, QueryError> {
-        self.api_key_list_into(client_database_id, start, duration, Vec::new()).await
+        self.api_key_list_into(client_database_id, start, duration, Vec::new())
+            .await
     }
 
     pub async fn api_key_list_into(
@@ -198,10 +194,7 @@ impl QueryClient {
         self.send_command_into(command, dst).await
     }
 
-    pub async fn ban_add(
-        &self,
-        param: BanParams,
-    ) -> Result<BanId, QueryError> {
+    pub async fn ban_add(&self, param: BanParams) -> Result<BanId, QueryError> {
         let command = Command::new("banadd")
             .arg_opt("ip", param.ip)?
             .arg_opt("name", param.name)?
@@ -221,7 +214,8 @@ impl QueryClient {
         reason: Option<&str>,
         continue_on_error: bool,
     ) -> Result<Vec<BanId>, QueryError> {
-        self.ban_client_into(client_id, time, reason, continue_on_error, Vec::new()).await
+        self.ban_client_into(client_id, time, reason, continue_on_error, Vec::new())
+            .await
     }
 
     pub async fn ban_client_into(
@@ -241,12 +235,8 @@ impl QueryClient {
         self.send_command_into(command, dst).await
     }
 
-    pub async fn ban_delete(
-        &self,
-        ban_id: i32,
-    ) -> Result<(), QueryError> {
-        let command = Command::new("bandel")
-            .arg("banid", ban_id)?;
+    pub async fn ban_delete(&self, ban_id: i32) -> Result<(), QueryError> {
+        let command = Command::new("bandel").arg("banid", ban_id)?;
 
         self.send_command_no_response(command).await
     }
@@ -324,10 +314,9 @@ impl QueryClient {
     pub async fn channel_create(
         &self,
         name: &str,
-        properties: &[ChannelProperty]
+        properties: &[ChannelProperty],
     ) -> Result<i32, QueryError> {
-        let mut command = Command::new("channelcreate")
-            .arg("channel_name", name)?;
+        let mut command = Command::new("channelcreate").arg("channel_name", name)?;
 
         for property in properties {
             let (key, value) = property.contents();
@@ -351,8 +340,7 @@ impl QueryClient {
         channel_id: i32,
         properties: &[ChannelProperty],
     ) -> Result<(), QueryError> {
-        let mut command = Command::new("channeledit")
-            .arg("cid", channel_id)?;
+        let mut command = Command::new("channeledit").arg("cid", channel_id)?;
 
         for property in properties {
             let (key, value) = property.contents();
@@ -364,8 +352,7 @@ impl QueryClient {
     }
 
     pub async fn channel_info(&self, id: i32) -> Result<ChannelInfo, QueryError> {
-        let command = Command::new("channelinfo")
-            .arg("cid", id)?;
+        let command = Command::new("channelinfo").arg("cid", id)?;
 
         self.send_command(command).await
     }
@@ -377,10 +364,9 @@ impl QueryClient {
     pub async fn channel_info_multiple_into(
         &self,
         ids: &[i32],
-        dst: Vec<ChannelInfo>
+        dst: Vec<ChannelInfo>,
     ) -> Result<Vec<ChannelInfo>, QueryError> {
-        let command = Command::new("channelinfo")
-            .arg_list("cid", ids)?;
+        let command = Command::new("channelinfo").arg_list("cid", ids)?;
 
         self.send_command_into(command, dst).await
     }
@@ -389,16 +375,13 @@ impl QueryClient {
         &self,
         flags: ChannelListFlags,
     ) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
-        self.channel_list_dynamic_into(
-            flags,
-            Vec::new()
-        ).await
+        self.channel_list_dynamic_into(flags, Vec::new()).await
     }
 
     pub async fn channel_list_dynamic_into(
         &self,
         flags: ChannelListFlags,
-        dst: Vec<ChannelListDynamicEntry>
+        dst: Vec<ChannelListDynamicEntry>,
     ) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
         let command = Command::new("channellist")
             .flag("topic", flags.topic)
@@ -411,7 +394,8 @@ impl QueryClient {
 
         self.send_command_custom_into(command, dst, |decoder| {
             ChannelListDynamicEntry::decode(decoder, &flags)
-        }).await
+        })
+        .await
     }
 
     pub async fn channel_list_full(&self) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
@@ -420,9 +404,10 @@ impl QueryClient {
 
     pub async fn channel_list_full_into(
         &self,
-        dst: Vec<ChannelListDynamicEntry>
+        dst: Vec<ChannelListDynamicEntry>,
     ) -> Result<Vec<ChannelListDynamicEntry>, QueryError> {
-        self.channel_list_dynamic_into(ChannelListFlags::all(), dst).await
+        self.channel_list_dynamic_into(ChannelListFlags::all(), dst)
+            .await
     }
 
     pub async fn channel_list(&self) -> Result<Vec<ChannelListEntry>, QueryError> {
@@ -431,7 +416,7 @@ impl QueryClient {
 
     pub async fn channel_list_into(
         &self,
-        dst: Vec<ChannelListEntry>
+        dst: Vec<ChannelListEntry>,
     ) -> Result<Vec<ChannelListEntry>, QueryError> {
         let command = Command::new("channellist");
 
@@ -460,8 +445,7 @@ impl QueryClient {
     // client
 
     pub async fn client_info(&self, id: i32) -> Result<ClientInfo, QueryError> {
-        let command = Command::new("clientinfo")
-            .arg("clid", id)?;
+        let command = Command::new("clientinfo").arg("clid", id)?;
 
         self.send_command(command).await
     }
@@ -473,29 +457,24 @@ impl QueryClient {
     pub async fn client_info_multiple_into(
         &self,
         ids: &[i32],
-        dst: Vec<ClientInfo>
+        dst: Vec<ClientInfo>,
     ) -> Result<Vec<ClientInfo>, QueryError> {
-        let command = Command::new("clientinfo")
-            .arg_list("clid", ids)?;
+        let command = Command::new("clientinfo").arg_list("clid", ids)?;
 
         self.send_command_into(command, dst).await
     }
-
 
     pub async fn client_list_dynamic(
         &self,
         flags: ClientListFlags,
     ) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
-        self.client_list_dynamic_into(
-            flags,
-            Vec::new()
-        ).await
+        self.client_list_dynamic_into(flags, Vec::new()).await
     }
 
     pub async fn client_list_dynamic_into(
         &self,
         flags: ClientListFlags,
-        dst: Vec<ClientListDynamicEntry>
+        dst: Vec<ClientListDynamicEntry>,
     ) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
         let command = Command::new("clientlist")
             .flag("uid", flags.uid)
@@ -511,7 +490,8 @@ impl QueryClient {
 
         self.send_command_custom_into(command, dst, |decoder| {
             ClientListDynamicEntry::decode(decoder, &flags)
-        }).await
+        })
+        .await
     }
 
     pub async fn client_list_full(&self) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
@@ -520,9 +500,10 @@ impl QueryClient {
 
     pub async fn client_list_full_into(
         &self,
-        dst: Vec<ClientListDynamicEntry>
+        dst: Vec<ClientListDynamicEntry>,
     ) -> Result<Vec<ClientListDynamicEntry>, QueryError> {
-        self.client_list_dynamic_into(ClientListFlags::all(), dst).await
+        self.client_list_dynamic_into(ClientListFlags::all(), dst)
+            .await
     }
 
     pub async fn client_list(&self) -> Result<Vec<ClientListEntry>, QueryError> {
@@ -531,7 +512,7 @@ impl QueryClient {
 
     pub async fn client_list_into(
         &self,
-        dst: Vec<ClientListEntry>
+        dst: Vec<ClientListEntry>,
     ) -> Result<Vec<ClientListEntry>, QueryError> {
         let command = Command::new("clientlist");
 
@@ -555,8 +536,7 @@ impl QueryClient {
     }
 
     pub async fn gm(&self, msg: &str) -> Result<(), QueryError> {
-        let command = Command::new("gm")
-            .arg("msg", msg)?;
+        let command = Command::new("gm").arg("msg", msg)?;
 
         self.send_command_no_response(command).await
     }
@@ -569,11 +549,7 @@ impl QueryClient {
         Ok(String::from_utf8(Vec::from(response))?)
     }
 
-    pub async fn login(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<(), QueryError> {
+    pub async fn login(&self, username: &str, password: &str) -> Result<(), QueryError> {
         let command = Command::new("login")
             .arg("client_login_name", username)?
             .arg("client_login_password", password)?;
@@ -593,17 +569,13 @@ impl QueryClient {
         self.send_command_no_response(command).await
     }
 
-    pub async fn server_notify_register(
-        &self,
-        event: EventType,
-    ) -> Result<(), QueryError> {
+    pub async fn server_notify_register(&self, event: EventType) -> Result<(), QueryError> {
         match event {
             EventType::Channel | EventType::TextChannel => {
                 self.server_notify_register_channel(event, 0).await
             }
             _ => {
-                let command = Command::new("servernotifyregister")
-                    .arg("event", event)?;
+                let command = Command::new("servernotifyregister").arg("event", event)?;
 
                 self.send_command_no_response(command).await
             }
@@ -622,13 +594,11 @@ impl QueryClient {
                     .arg("id", channel_id)?;
 
                 self.send_command_no_response(command).await
-            },
-            _ => {
-                Err(QueryError::InvalidArgument {
-                    name: "event",
-                    message: Cow::from("Must be EventType::Channel or EventType::TextChannel"),
-                })
             }
+            _ => Err(QueryError::InvalidArgument {
+                name: "event",
+                message: Cow::from("Must be EventType::Channel or EventType::TextChannel"),
+            }),
         }
     }
 
@@ -644,15 +614,13 @@ impl QueryClient {
     }
 
     pub async fn use_sid(&self, sid: i32) -> Result<(), QueryError> {
-        let command = Command::new("use")
-            .arg("sid", sid)?;
+        let command = Command::new("use").arg("sid", sid)?;
 
         self.send_command_no_response(command).await
     }
 
     pub async fn use_port(&self, port: u16) -> Result<(), QueryError> {
-        let command = Command::new("use")
-            .arg("port", port)?;
+        let command = Command::new("use").arg("port", port)?;
 
         self.send_command_no_response(command).await
     }

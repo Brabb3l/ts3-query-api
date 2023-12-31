@@ -1,9 +1,9 @@
-use std::cmp::max;
 use bytes::Bytes;
+use std::cmp::max;
 
 pub(super) struct RawCommandRequest {
     pub data: String,
-    pub response_tx: flume::Sender<RawCommandResponse>
+    pub response_tx: flume::Sender<RawCommandResponse>,
 }
 
 pub struct RawCommandResponse {

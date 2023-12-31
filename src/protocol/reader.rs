@@ -1,11 +1,11 @@
-use std::cmp::max;
-use bytes::BytesMut;
-use log::{debug, error, log_enabled};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
-use tokio::net::tcp::OwnedReadHalf;
 use crate::error::QueryError;
 use crate::event::Event;
 use crate::protocol::types::RawCommandResponse;
+use bytes::BytesMut;
+use log::{debug, error, log_enabled};
+use std::cmp::max;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::net::tcp::OwnedReadHalf;
 
 pub(super) struct Reader {
     reader: BufReader<OwnedReadHalf>,
@@ -22,7 +22,7 @@ impl Reader {
     pub fn new(
         reader: OwnedReadHalf,
         response_tx: flume::Sender<RawCommandResponse>,
-        event_tx: flume::Sender<Event>
+        event_tx: flume::Sender<Event>,
     ) -> Self {
         Self {
             reader: BufReader::new(reader),
@@ -61,7 +61,7 @@ impl Reader {
 
             let pos = match pos {
                 Some(pos) => pos,
-                None => break
+                None => break,
             };
 
             let pos = pos + self.last_scan_pos + 1;
@@ -81,18 +81,26 @@ impl Reader {
                     let status = &status[..status.len() - 2];
 
                     if !content.is_empty() {
-                        debug!("[S->C] {}", std::str::from_utf8(content).unwrap_or("~Malformed UTF-8~"));
+                        debug!(
+                            "[S->C] {}",
+                            std::str::from_utf8(content).unwrap_or("~Malformed UTF-8~")
+                        );
                     }
 
-                    debug!("[S->C] {}", std::str::from_utf8(status).unwrap_or("~Malformed UTF-8~"));
+                    debug!(
+                        "[S->C] {}",
+                        std::str::from_utf8(status).unwrap_or("~Malformed UTF-8~")
+                    );
                 }
 
                 let response = RawCommandResponse {
                     response,
-                    mid_index
+                    mid_index,
                 };
 
-                self.response_tx.send_async(response).await
+                self.response_tx
+                    .send_async(response)
+                    .await
                     .map_err(|_| QueryError::ConnectionClosed)?;
             } else if start.starts_with(b"notify") {
                 let scrambled_data = self.receive_buffer.split_off(self.last_cr_pos);
@@ -109,7 +117,9 @@ impl Reader {
 
                 let event = Event::from(status)?;
 
-                self.event_tx.send_async(event).await
+                self.event_tx
+                    .send_async(event)
+                    .await
                     .map_err(|_| QueryError::ConnectionClosed)?;
             } else {
                 self.last_cr_pos = pos;
@@ -123,10 +133,14 @@ impl Reader {
     }
 
     async fn wait_for_bytes(&mut self) -> Result<(), QueryError> {
-        let read_bytes = self.reader.read(&mut self.read_buffer).await
+        let read_bytes = self
+            .reader
+            .read(&mut self.read_buffer)
+            .await
             .map_err(QueryError::ReadError)?;
 
-        self.receive_buffer.extend_from_slice(&self.read_buffer[..read_bytes]);
+        self.receive_buffer
+            .extend_from_slice(&self.read_buffer[..read_bytes]);
 
         Ok(())
     }
@@ -134,17 +148,20 @@ impl Reader {
     pub(super) async fn read_welcome_message(&mut self) -> Result<(), QueryError> {
         let mut buf = Vec::new();
 
-        self.reader.read_until(b'\r', &mut buf).await
+        self.reader
+            .read_until(b'\r', &mut buf)
+            .await
             .map_err(QueryError::ReadError)?;
 
         if buf != b"TS3\n\r" {
             return Err(QueryError::NotTS3Server);
         }
 
-        self.reader.read_until(b'\r', &mut buf).await
+        self.reader
+            .read_until(b'\r', &mut buf)
+            .await
             .map_err(QueryError::ReadError)?;
 
         Ok(())
     }
-
 }

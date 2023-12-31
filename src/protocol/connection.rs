@@ -1,12 +1,12 @@
-use tokio::net::TcpStream;
-use tokio::time::sleep;
+use super::reader::Reader;
+use super::types::{RawCommandRequest, RawCommandResponse};
+use super::writer::Writer;
 use crate::definitions::Status;
 use crate::error::QueryError;
 use crate::event::Event;
 use crate::parser::Decoder;
-use super::reader::Reader;
-use super::types::{RawCommandRequest, RawCommandResponse};
-use super::writer::Writer;
+use tokio::net::TcpStream;
+use tokio::time::sleep;
 
 pub(super) struct Connection {
     reader: Reader,
@@ -49,18 +49,24 @@ impl Connection {
         Ok(())
     }
 
-    async fn keep_alive_loop(command_tx: flume::Sender<RawCommandRequest>) -> Result<(), QueryError> {
+    async fn keep_alive_loop(
+        command_tx: flume::Sender<RawCommandRequest>,
+    ) -> Result<(), QueryError> {
         loop {
             sleep(std::time::Duration::from_secs(60)).await;
 
             let (response_tx, response_rx) = flume::unbounded::<RawCommandResponse>();
 
-            command_tx.send(RawCommandRequest {
-                data: "version\n\r".to_string(),
-                response_tx
-            }).map_err(|_| QueryError::ConnectionClosed)?;
+            command_tx
+                .send(RawCommandRequest {
+                    data: "version\n\r".to_string(),
+                    response_tx,
+                })
+                .map_err(|_| QueryError::ConnectionClosed)?;
 
-            let status = response_rx.recv_async().await
+            let status = response_rx
+                .recv_async()
+                .await
                 .map_err(|_| QueryError::ConnectionClosed)?;
 
             let status = Decoder::new(status.status())
@@ -70,7 +76,7 @@ impl Connection {
             if status.id != 0 {
                 return Err(QueryError::QueryError {
                     id: status.id,
-                    message: status.message
+                    message: status.message,
                 });
             }
         }

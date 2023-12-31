@@ -1,6 +1,6 @@
+use crate::parser::Separator;
 use std::borrow::Cow;
 use thiserror::Error;
-use crate::parser::Separator;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
@@ -77,9 +77,9 @@ pub enum QueryError {
     #[error("Invalid argument '{name}': {message}")]
     InvalidArgument {
         name: &'static str,
-        message: Cow<'static, str>
+        message: Cow<'static, str>,
     },
 
     #[error("Query error: {message} ({id})")]
-    QueryError { id: i32, message: String }
+    QueryError { id: i32, message: String },
 }
