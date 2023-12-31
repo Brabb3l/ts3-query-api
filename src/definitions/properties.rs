@@ -154,6 +154,7 @@ impl<'de> serde::Deserialize<'de> for ChannelProperty {
 
 impl ChannelInfo {
     pub fn into_properties_vec(self, mut dst: Vec<ChannelProperty>) -> Vec<ChannelProperty> {
+        dst.push(ChannelProperty::ParentId(self.parent_id));
         dst.push(ChannelProperty::Name(self.name));
 
         if let Some(topic) = self.topic {
@@ -171,8 +172,13 @@ impl ChannelInfo {
         dst.push(ChannelProperty::Codec(self.codec));
         dst.push(ChannelProperty::CodecQuality(self.codec_quality));
 
-        dst.push(ChannelProperty::MaxClients(self.max_clients));
-        dst.push(ChannelProperty::MaxFamilyClients(self.max_family_clients));
+        if !self.flag_max_clients_unlimited {
+            dst.push(ChannelProperty::MaxClients(self.max_clients));
+        }
+
+        if !self.flag_max_family_clients_unlimited && !self.flag_max_family_clients_inherited {
+            dst.push(ChannelProperty::MaxFamilyClients(self.max_family_clients));
+        }
 
         dst.push(ChannelProperty::Order(self.order));
 
@@ -181,7 +187,10 @@ impl ChannelInfo {
         dst.push(ChannelProperty::FlagDefault(self.flag_default));
 
         dst.push(ChannelProperty::CodecIsUnencrypted(self.codec_is_unencrypted));
-        dst.push(ChannelProperty::DeleteDelay(self.delete_delay));
+
+        if !self.flag_permanent && !self.flag_semi_permanent && !self.flag_default {
+            dst.push(ChannelProperty::DeleteDelay(self.delete_delay));
+        }
 
         dst.push(ChannelProperty::FlagMaxClientsUnlimited(self.flag_max_clients_unlimited));
         dst.push(ChannelProperty::FlagMaxFamilyClientsUnlimited(
@@ -197,7 +206,9 @@ impl ChannelInfo {
             dst.push(ChannelProperty::NamePhonetic(name_phonetic));
         }
 
-        dst.push(ChannelProperty::IconId(self.icon_id));
+        if self.icon_id != 0 {
+            dst.push(ChannelProperty::IconId(self.icon_id));
+        }
 
         if let Some(banner_url) = self.banner_gfx_url {
             dst.push(ChannelProperty::BannerUrl(banner_url));
