@@ -153,8 +153,8 @@ impl QueryClient {
     pub async fn api_key_add(
         &self,
         scope: Scope,
-        lifetime: Option<u32>,
-        client_database_id: Option<u32>,
+        lifetime: Option<i32>,
+        client_database_id: Option<i32>,
     ) -> Result<ApiKey, QueryError> {
         let command = Command::new("apikeyadd")
             .arg("scope", scope)?
@@ -166,7 +166,7 @@ impl QueryClient {
 
     pub async fn api_key_delete(
         &self,
-        id: u32,
+        id: i32,
     ) -> Result<(), QueryError> {
         let command = Command::new("apikeydel")
             .arg("id", id)?;
@@ -176,18 +176,18 @@ impl QueryClient {
 
     pub async fn api_key_list(
         &self,
-        client_database_id: Option<u32>,
-        start: Option<u32>,
-        duration: Option<u32>,
+        client_database_id: Option<i32>,
+        start: Option<i32>,
+        duration: Option<i32>,
     ) -> Result<Vec<ApiKey>, QueryError> {
         self.api_key_list_into(client_database_id, start, duration, Vec::new()).await
     }
 
     pub async fn api_key_list_into(
         &self,
-        client_database_id: Option<u32>,
-        start: Option<u32>,
-        duration: Option<u32>,
+        client_database_id: Option<i32>,
+        start: Option<i32>,
+        duration: Option<i32>,
         dst: Vec<ApiKey>,
     ) -> Result<Vec<ApiKey>, QueryError> {
         let command = Command::new("apikeylist")
@@ -216,8 +216,8 @@ impl QueryClient {
 
     pub async fn ban_client(
         &self,
-        client_id: &[u32],
-        time: Option<u32>,
+        client_id: &[i32],
+        time: Option<i32>,
         reason: Option<&str>,
         continue_on_error: bool,
     ) -> Result<Vec<BanId>, QueryError> {
@@ -226,8 +226,8 @@ impl QueryClient {
 
     pub async fn ban_client_into(
         &self,
-        client_id: &[u32],
-        time: Option<u32>,
+        client_id: &[i32],
+        time: Option<i32>,
         reason: Option<&str>,
         continue_on_error: bool,
         dst: Vec<BanId>,
@@ -243,7 +243,7 @@ impl QueryClient {
 
     pub async fn ban_delete(
         &self,
-        ban_id: u32,
+        ban_id: i32,
     ) -> Result<(), QueryError> {
         let command = Command::new("bandel")
             .arg("banid", ban_id)?;
@@ -259,16 +259,16 @@ impl QueryClient {
 
     pub async fn ban_list(
         &self,
-        start: Option<u32>,
-        duration: Option<u32>,
+        start: Option<i32>,
+        duration: Option<i32>,
     ) -> Result<Vec<Ban>, QueryError> {
         self.ban_list_into(start, duration, Vec::new()).await
     }
 
     pub async fn ban_list_into(
         &self,
-        start: Option<u32>,
-        duration: Option<u32>,
+        start: Option<i32>,
+        duration: Option<i32>,
         dst: Vec<Ban>,
     ) -> Result<Vec<Ban>, QueryError> {
         let command = Command::new("banlist")
@@ -282,9 +282,9 @@ impl QueryClient {
 
     pub async fn channel_add_perm_id(
         &self,
-        channel_id: u32,
-        perms_id: u32,
-        perms_value: u32,
+        channel_id: i32,
+        perms_id: i32,
+        perms_value: i32,
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
             .arg("cid", channel_id)?
@@ -296,7 +296,7 @@ impl QueryClient {
 
     pub async fn channel_add_perm_multiple(
         &self,
-        channel_id: u32,
+        channel_id: i32,
         permissions: &[Permission],
     ) -> Result<(), QueryError> {
         let command = Command::new("channeladdperm")
@@ -308,7 +308,7 @@ impl QueryClient {
 
     pub async fn channel_add_perm(
         &self,
-        channel_id: u32,
+        channel_id: i32,
         permission: &Permission,
     ) -> Result<(), QueryError> {
         let pair = permission.into_pair();
@@ -325,7 +325,7 @@ impl QueryClient {
         &self,
         name: &str,
         properties: &[ChannelProperty]
-    ) -> Result<u32, QueryError> {
+    ) -> Result<i32, QueryError> {
         let mut command = Command::new("channelcreate")
             .arg("channel_name", name)?;
 
@@ -338,7 +338,7 @@ impl QueryClient {
         self.send_command::<ChannelId>(command).await.map(|v| v.id)
     }
 
-    pub async fn channel_delete(&self, channel_id: u32, force: bool) -> Result<(), QueryError> {
+    pub async fn channel_delete(&self, channel_id: i32, force: bool) -> Result<(), QueryError> {
         let command = Command::new("channeldelete")
             .flag("force", force)
             .arg("cid", channel_id)?;
@@ -348,7 +348,7 @@ impl QueryClient {
 
     pub async fn channel_edit(
         &self,
-        channel_id: u32,
+        channel_id: i32,
         properties: &[ChannelProperty],
     ) -> Result<(), QueryError> {
         let mut command = Command::new("channeledit")
@@ -363,20 +363,20 @@ impl QueryClient {
         self.send_command_no_response(command).await
     }
 
-    pub async fn channel_info(&self, id: u32) -> Result<ChannelInfo, QueryError> {
+    pub async fn channel_info(&self, id: i32) -> Result<ChannelInfo, QueryError> {
         let command = Command::new("channelinfo")
             .arg("cid", id)?;
 
         self.send_command(command).await
     }
 
-    pub async fn channel_info_multiple(&self, ids: &[u32]) -> Result<Vec<ChannelInfo>, QueryError> {
+    pub async fn channel_info_multiple(&self, ids: &[i32]) -> Result<Vec<ChannelInfo>, QueryError> {
         self.channel_info_multiple_into(ids, Vec::new()).await
     }
 
     pub async fn channel_info_multiple_into(
         &self,
-        ids: &[u32],
+        ids: &[i32],
         dst: Vec<ChannelInfo>
     ) -> Result<Vec<ChannelInfo>, QueryError> {
         let command = Command::new("channelinfo")
@@ -440,14 +440,14 @@ impl QueryClient {
 
     pub async fn channel_perm_list(
         &self,
-        channel_id: u32,
+        channel_id: i32,
     ) -> Result<Vec<ChannelPermission>, QueryError> {
         self.channel_perm_list_into(channel_id, Vec::new()).await
     }
 
     pub async fn channel_perm_list_into(
         &self,
-        channel_id: u32,
+        channel_id: i32,
         dst: Vec<ChannelPermission>,
     ) -> Result<Vec<ChannelPermission>, QueryError> {
         let command = Command::new("channelpermlist")
@@ -459,20 +459,20 @@ impl QueryClient {
 
     // client
 
-    pub async fn client_info(&self, id: u32) -> Result<ClientInfo, QueryError> {
+    pub async fn client_info(&self, id: i32) -> Result<ClientInfo, QueryError> {
         let command = Command::new("clientinfo")
             .arg("clid", id)?;
 
         self.send_command(command).await
     }
 
-    pub async fn client_info_multiple(&self, ids: &[u32]) -> Result<Vec<ClientInfo>, QueryError> {
+    pub async fn client_info_multiple(&self, ids: &[i32]) -> Result<Vec<ClientInfo>, QueryError> {
         self.client_info_multiple_into(ids, Vec::new()).await
     }
 
     pub async fn client_info_multiple_into(
         &self,
-        ids: &[u32],
+        ids: &[i32],
         dst: Vec<ClientInfo>
     ) -> Result<Vec<ClientInfo>, QueryError> {
         let command = Command::new("clientinfo")
@@ -540,8 +540,8 @@ impl QueryClient {
 
     pub async fn client_move(
         &self,
-        client_ids: &[u32],
-        channel_id: u32,
+        client_ids: &[i32],
+        channel_id: i32,
         password: Option<&str>,
         continue_on_error: bool,
     ) -> Result<(), QueryError> {
@@ -613,7 +613,7 @@ impl QueryClient {
     pub async fn server_notify_register_channel(
         &self,
         event: EventType,
-        channel_id: u32,
+        channel_id: i32,
     ) -> Result<(), QueryError> {
         match event {
             EventType::Channel | EventType::TextChannel => {
@@ -643,7 +643,7 @@ impl QueryClient {
         Ok(())
     }
 
-    pub async fn use_sid(&self, sid: u32) -> Result<(), QueryError> {
+    pub async fn use_sid(&self, sid: i32) -> Result<(), QueryError> {
         let command = Command::new("use")
             .arg("sid", sid)?;
 

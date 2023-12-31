@@ -81,5 +81,5 @@ pub enum QueryError {
     },
 
     #[error("Query error: {message} ({id})")]
-    QueryError { id: u32, message: String }
+    QueryError { id: i32, message: String }
 }
