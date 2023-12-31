@@ -27,7 +27,7 @@ properties! {
         Description: str = "channel_description",
         Password: str = "channel_password",
 
-        Codec: i32 = "channel_codec",
+        Codec: Codec = "channel_codec",
         CodecQuality: i32 = "channel_codec_quality",
 
         MaxClients: i32 = "channel_maxclients",
@@ -58,12 +58,13 @@ properties! {
 
 #[cfg(feature = "serde")]
 use serde::ser::SerializeStruct;
+use crate::definitions::{ChannelInfo, Codec};
 
 #[cfg(feature = "serde")]
 impl serde::Serialize for ChannelProperty {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("Permission", 2)?;
-        let (id, value) = self.contents();
+        let (id, value) = self.contents().map_err(serde::ser::Error::custom)?;
 
         state.serialize_field("id", id.as_ref())?;
 
@@ -148,5 +149,66 @@ impl<'de> serde::Deserialize<'de> for ChannelProperty {
 
         const FIELDS: &[&str] = &["id", "value"];
         deserializer.deserialize_struct("ChannelProperty", FIELDS, ChannelPropertyVisitor)
+    }
+}
+
+impl ChannelInfo {
+    pub fn into_vec(self, mut dst: Vec<ChannelProperty>) -> Vec<ChannelProperty> {
+        dst.push(ChannelProperty::Name(self.name));
+
+        if let Some(topic) = self.topic {
+            dst.push(ChannelProperty::Topic(topic));
+        }
+
+        if let Some(description) = self.description {
+            dst.push(ChannelProperty::Description(description));
+        }
+
+        if let Some(password) = self.password {
+            dst.push(ChannelProperty::Password(password));
+        }
+
+        dst.push(ChannelProperty::Codec(self.codec));
+        dst.push(ChannelProperty::CodecQuality(self.codec_quality));
+
+        dst.push(ChannelProperty::MaxClients(self.max_clients));
+        dst.push(ChannelProperty::MaxFamilyClients(self.max_family_clients));
+
+        dst.push(ChannelProperty::Order(self.order));
+
+        dst.push(ChannelProperty::FlagPermanent(self.flag_permanent));
+        dst.push(ChannelProperty::FlagSemiPermanent(self.flag_semi_permanent));
+        dst.push(ChannelProperty::FlagDefault(self.flag_default));
+
+        dst.push(ChannelProperty::CodecIsUnencrypted(self.codec_is_unencrypted));
+        dst.push(ChannelProperty::DeleteDelay(self.delete_delay));
+
+        dst.push(ChannelProperty::FlagMaxClientsUnlimited(self.flag_max_clients_unlimited));
+        dst.push(ChannelProperty::FlagMaxFamilyClientsUnlimited(
+            self.flag_max_family_clients_unlimited,
+        ));
+        dst.push(ChannelProperty::FlagMaxFamilyClientsInherited(
+            self.flag_max_family_clients_inherited,
+        ));
+
+        dst.push(ChannelProperty::NeededTalkPower(self.needed_talk_power));
+
+        if let Some(name_phonetic) = self.name_phonetic {
+            dst.push(ChannelProperty::NamePhonetic(name_phonetic));
+        }
+
+        dst.push(ChannelProperty::IconId(self.icon_id));
+
+        if let Some(banner_url) = self.banner_gfx_url {
+            dst.push(ChannelProperty::BannerUrl(banner_url));
+        }
+
+        dst.push(ChannelProperty::BannerMode(self.banner_mode));
+
+        dst
+    }
+
+    pub fn to_vec(self) -> Vec<ChannelProperty> {
+        self.into_vec(Vec::new())
     }
 }

@@ -47,8 +47,8 @@ ts_response! {
         country("client_country"): Option<String>,
         badges("client_badges"): Badges = Badges::default(),
         signed_badges("client_signed_badges"): Vec<String>,
-        myteamspeak_id("client_myteamspeak_id"): Option<String>,
-        myteamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
+        my_teamspeak_id("client_myteamspeak_id"): Option<String>,
+        my_teamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
         integrations("client_integrations"): Option<String>,
         flag_avatar("client_flag_avatar"): Option<String>,
 
@@ -116,7 +116,7 @@ ts_response! {
         icon_id("channel_icon_id"): Option<i32>,
 
         codec("channel_codec"): Codec = Codec::OpusVoice,
-        codec_quality("channel_codec_quality"): u8 = 6,
+        codec_quality("channel_codec_quality"): i32 = 6,
         codec_latency_factor("channel_codec_latency_factor"): i32 = 1,
         codec_is_unencrypted("channel_codec_is_unencrypted"): bool = false,
 
@@ -164,7 +164,7 @@ ts_response! {
         icon_id("channel_icon_id"): Option<i32>,
 
         codec("channel_codec"): Option<Codec>,
-        codec_quality("channel_codec_quality"): Option<u8>,
+        codec_quality("channel_codec_quality"): Option<i32>,
         codec_latency_factor("channel_codec_latency_factor"): Option<i32>,
         codec_is_unencrypted("channel_codec_is_unencrypted"): Option<bool>,
 
@@ -225,13 +225,13 @@ ts_response! {
         codec_encryption_mode("virtualserver_codec_encryption_mode"): Option<CodecEncryptionMode>,
         default_server_group("virtualserver_default_server_group"): Option<i32>,
         default_channel_group("virtualserver_default_channel_group"): Option<i32>,
-        hostbanner_url("virtualserver_hostbanner_url"): Option<String>,
-        hostbanner_gfx_url("virtualserver_hostbanner_gfx_url"): Option<String>,
-        hostbanner_gfx_interval("virtualserver_hostbanner_gfx_interval"): Option<i32>,
+        host_banner_url("virtualserver_hostbanner_url"): Option<String>,
+        host_banner_gfx_url("virtualserver_hostbanner_gfx_url"): Option<String>,
+        host_banner_gfx_interval("virtualserver_hostbanner_gfx_interval"): Option<i32>,
         priority_speaker_dimm_modificator("virtualserver_priority_speaker_dimm_modificator"): Option<f32>,
-        hostbutton_tooltip("virtualserver_hostbutton_tooltip"): Option<String>,
-        hostbutton_url("virtualserver_hostbutton_url"): Option<String>,
-        hostbutton_gfx_url("virtualserver_hostbutton_gfx_url"): Option<String>,
+        host_button_tooltip("virtualserver_hostbutton_tooltip"): Option<String>,
+        host_button_url("virtualserver_hostbutton_url"): Option<String>,
+        host_button_gfx_url("virtualserver_hostbutton_gfx_url"): Option<String>,
         name_phonetic("virtualserver_name_phonetic"): Option<String>,
         icon_id("virtualserver_icon_id"): Option<i32>,
         hostbanner_mode("virtualserver_hostbanner_mode"): Option<HostBannerMode>,

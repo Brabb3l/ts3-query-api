@@ -8,6 +8,9 @@ macro_rules! property {
     ($value_name:ident, i32) => {
         PropertyType::Int(*$value_name)
     };
+    ($value_name:ident, $ty:tt) => {
+        $value_name.into_property()?
+    };
 }
 
 macro_rules! property_type {
@@ -19,6 +22,9 @@ macro_rules! property_type {
     };
     (i32) => {
         i32
+    };
+    ($ty:tt) => {
+        $ty
     };
 }
 
@@ -40,11 +46,14 @@ macro_rules! property_parse {
     ($value:expr, str) => {
         $value.to_string()
     };
+    ($value:expr, $ty:tt) => {
+        $ty::from($value)
+    };
 }
 
 macro_rules! properties {
     ($type:ident {
-        $($name:ident: $ty:ident = $value:expr),* $(,)?
+        $($name:ident: $ty:tt = $value:expr),* $(,)?
     }) => {
         #[allow(dead_code)]
         #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,7 +77,7 @@ macro_rules! properties {
                 }
             }
 
-            pub fn contents(&self) -> (std::borrow::Cow<'_, str>, PropertyType) {
+            pub fn contents(&self) -> Result<(std::borrow::Cow<'_, str>, PropertyType), $crate::error::ParseError> {
                 let name = match self {
                     $( $type::$name { .. } => std::borrow::Cow::from($value), )*
                     $type::Custom(name, _) => std::borrow::Cow::from(name),
@@ -79,7 +88,7 @@ macro_rules! properties {
                     $type::Custom(_, value) => value.clone(),
                 };
 
-                (name, value)
+                Ok((name, value))
             }
         }
     }
@@ -251,9 +260,30 @@ macro_rules! ts_response {
     };
 }
 
+macro_rules! ts_string_of {
+    ($value:expr, str) => { $value };
+    ($value:expr, $ty:tt) => { stringify!($value) };
+}
+
+macro_rules! ts_enum_type {
+    (str) => { &str };
+    ($ty:tt) => { $ty };
+}
+
+macro_rules! ts_enum_parse {
+    ($value:tt, str) => { $value.as_ref() };
+    ($value:tt, $ty:tt) => { $value.parse()? };
+}
+
+macro_rules! ts_enum_to_property {
+    ($value:tt, str) => { $crate::definitions::PropertyType::Str($value.to_string()) };
+    ($value:tt, i32) => { $crate::definitions::PropertyType::Int($value) };
+    ($value:tt, bool) => { $crate::definitions::PropertyType::Bool($value) };
+}
+
 macro_rules! ts_enum {
     (
-        $type:ident {
+        $type:ident<$value_type:tt> {
             $($name:ident = $value:expr),* $(,)?
         }
     ) => {
@@ -264,10 +294,42 @@ macro_rules! ts_enum {
             Unknown(String),
         }
 
+        impl From<$crate::macros::ts_enum_type!($value_type)> for $type {
+            fn from(value: $crate::macros::ts_enum_type!($value_type)) -> Self {
+                match value {
+                    $( $value => $type::$name, )*
+                    _ => $type::Unknown(value.to_string()),
+                }
+            }
+        }
+
+        impl $type {
+            pub fn from(value: &str) -> Self {
+                match value {
+                    $( $crate::macros::ts_string_of!($value, $value_type) => $type::$name, )*
+                    _ => $type::Unknown(value.to_string()),
+                }
+            }
+
+            pub fn descriminator(&self) -> Result<$crate::macros::ts_enum_type!($value_type), $crate::error::ParseError> {
+                Ok(match self {
+                    $( $type::$name => $value, )*
+                    $type::Unknown(value) => $crate::macros::ts_enum_parse!(value, $value_type),
+                })
+            }
+
+            pub fn into_property(&self) -> Result<$crate::definitions::PropertyType, $crate::error::ParseError> {
+                match self {
+                    $( $type::$name => Ok($crate::macros::ts_enum_to_property!($value, $value_type)), )*
+                    $type::Unknown(value) => Ok($crate::definitions::PropertyType::Str(value.to_string())),
+                }
+            }
+        }
+
         impl crate::parser::DecodeValue for $type {
             fn decode(_key: &str, value: String) -> Result<Self, $crate::error::ParseError> {
                 match value.as_ref() {
-                    $( stringify!($value) => Ok($type::$name), )*
+                    $( $crate::macros::ts_string_of!($value, $value_type) => Ok($type::$name), )*
                     _ => Ok($type::Unknown(value)),
                 }
             }
@@ -276,7 +338,7 @@ macro_rules! ts_enum {
         impl crate::parser::Encode for $type {
             fn encode(&self, buf: &mut String) -> std::fmt::Result {
                 match self {
-                    $( $type::$name => buf.push_str(stringify!($value)), )*
+                    $( $type::$name => buf.push_str($crate::macros::ts_string_of!($value, $value_type)), )*
                     $type::Unknown(value) => buf.push_str(value),
                 }
 
@@ -373,6 +435,10 @@ pub(crate) use decode_key;
 pub(crate) use decode_type;
 pub(crate) use ts_response;
 
+pub(crate) use ts_string_of;
+pub(crate) use ts_enum_type;
+pub(crate) use ts_enum_parse;
+pub(crate) use ts_enum_to_property;
 pub(crate) use ts_enum;
 
 pub(crate) use flag_builder;

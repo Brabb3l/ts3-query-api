@@ -124,7 +124,7 @@ ts_response! {
 ts_response! {
     ChannelListVoiceEntry {
         codec("channel_codec"): Codec = Codec::OpusVoice,
-        codec_quality("channel_codec_quality"): u8,
+        codec_quality("channel_codec_quality"): i32,
         needed_talk_power("channel_needed_talk_power"): i32
     }
 }
@@ -174,7 +174,7 @@ ts_response! {
         banner_mode("channel_banner_mode"): i32,
 
         codec("channel_codec"): Codec = Codec::OpusVoice,
-        codec_quality("channel_codec_quality"): u8,
+        codec_quality("channel_codec_quality"): i32,
         codec_latency_factor("channel_codec_latency_factor"): i32,
         codec_is_unencrypted("channel_codec_is_unencrypted"): bool,
 
@@ -185,15 +185,15 @@ ts_response! {
         flag_permanent("channel_flag_permanent"): bool,
         flag_semi_permanent("channel_flag_semi_permanent"): bool,
         flag_default("channel_flag_default"): bool,
-        flag_maxclients_unlimited("channel_flag_maxclients_unlimited"): bool,
-        flag_maxfamilyclients_unlimited("channel_flag_maxfamilyclients_unlimited"): bool,
-        flag_maxfamilyclients_inherited("channel_flag_maxfamilyclients_inherited"): bool,
+        flag_max_clients_unlimited("channel_flag_maxclients_unlimited"): bool,
+        flag_max_family_clients_unlimited("channel_flag_maxfamilyclients_unlimited"): bool,
+        flag_max_family_clients_inherited("channel_flag_maxfamilyclients_inherited"): bool,
         flag_password("channel_flag_password"): bool,
 
         needed_talk_power("channel_needed_talk_power"): i32,
         forced_silence("channel_forced_silence"): bool,
 
-        filepath("channel_filepath"): String,
+        filepath("channel_filepath"): Option<String>,
         seconds_empty: i32,
         delete_delay("channel_delete_delay"): i32,
         security_salt("channel_security_salt"): Option<String>,
@@ -319,8 +319,8 @@ ts_response! {
         country("client_country"): Option<String>,
         badges("client_badges"): Badges = Badges::default(),
         signed_badges("client_signed_badges"): Vec<String>,
-        myteamspeak_id("client_myteamspeak_id"): Option<String>,
-        myteamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
+        my_teamspeak_id("client_myteamspeak_id"): Option<String>,
+        my_teamspeak_avatar("client_myteamspeak_avatar"): Option<String>,
         integrations("client_integrations"): Option<String>,
         flag_avatar("client_flag_avatar"): Option<String>,
 

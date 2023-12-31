@@ -319,7 +319,7 @@ impl QueryClient {
         let mut command = Command::new("channelcreate").arg("channel_name", name)?;
 
         for property in properties {
-            let (key, value) = property.contents();
+            let (key, value) = property.contents()?;
 
             command = command.arg(key.as_ref(), value)?;
         }
@@ -343,7 +343,7 @@ impl QueryClient {
         let mut command = Command::new("channeledit").arg("cid", channel_id)?;
 
         for property in properties {
-            let (key, value) = property.contents();
+            let (key, value) = property.contents()?;
 
             command = command.arg(key.as_ref(), value)?;
         }
