@@ -153,7 +153,7 @@ impl<'de> serde::Deserialize<'de> for ChannelProperty {
 }
 
 impl ChannelInfo {
-    pub fn into_vec(self, mut dst: Vec<ChannelProperty>) -> Vec<ChannelProperty> {
+    pub fn into_properties_vec(self, mut dst: Vec<ChannelProperty>) -> Vec<ChannelProperty> {
         dst.push(ChannelProperty::Name(self.name));
 
         if let Some(topic) = self.topic {
@@ -208,7 +208,7 @@ impl ChannelInfo {
         dst
     }
 
-    pub fn to_vec(self) -> Vec<ChannelProperty> {
-        self.into_vec(Vec::new())
+    pub fn to_properties_vec(self) -> Vec<ChannelProperty> {
+        self.into_properties_vec(Vec::new())
     }
 }
