@@ -365,8 +365,8 @@ ts_response! {
         channel_group_inherited_channel_id("client_channel_group_inherited_channel_id"): i32,
         default_token("client_default_token"): Option<String>,
 
-        file_transfer_bandwidth_sent("connection_filetransfer_bandwidth_sent"): i32,
-        file_transfer_bandwidth_received("connection_filetransfer_bandwidth_received"): i32,
+        file_transfer_bandwidth_sent("connection_filetransfer_bandwidth_sent"): Option<i32>,
+        file_transfer_bandwidth_received("connection_filetransfer_bandwidth_received"): Option<i32>,
         packets_sent_total("connection_packets_sent_total"): i32,
         bytes_sent_total("connection_bytes_sent_total"): i32,
         packets_received_total("connection_packets_received_total"): i32,
