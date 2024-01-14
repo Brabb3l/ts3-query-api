@@ -95,7 +95,7 @@ use std::borrow::Cow;
 // [ ] permfind
 // [ ] permget
 // [ ] permidgetbyname
-// [ ] permissionlist
+// [X] permissionlist
 // [ ] permoverview
 // [ ] permreset
 // [ ] privilegekeyadd
@@ -109,7 +109,7 @@ use std::borrow::Cow;
 // [ ] sendtextmessage
 // [ ] servercreate
 // [ ] serverdelete
-// [ ] serveredit
+// [X] serveredit
 // [ ] servergroupadd
 // [ ] servergroupaddclient
 // [ ] servergroupaddperm
@@ -125,7 +125,7 @@ use std::borrow::Cow;
 // [ ] servergrouprename
 // [ ] servergroupsbyclientid
 // [ ] serveridgetbyport
-// [ ] serverinfo
+// [X] serverinfo
 // [ ] serverlist
 // [X] servernotifyregister
 // [ ] servernotifyunregister
@@ -563,10 +563,41 @@ impl QueryClient {
         self.send_command_no_response(command).await
     }
 
+    pub async fn permission_list(&self) -> Result<Vec<PermissionListEntry>, QueryError> {
+        self.permission_list_into(Vec::new()).await
+    }
+
+    pub async fn permission_list_into(
+        &self,
+        dst: Vec<PermissionListEntry>,
+    ) -> Result<Vec<PermissionListEntry>, QueryError> {
+        let command = Command::new("permissionlist");
+
+        self.send_command_into(command, dst).await
+    }
+
     pub async fn quit(&self) -> Result<(), QueryError> {
         let command = Command::new("quit");
 
         self.send_command_no_response(command).await
+    }
+
+    pub async fn server_edit(&self, properties: &[ServerProperty]) -> Result<(), QueryError> {
+        let mut command = Command::new("serveredit");
+
+        for property in properties {
+            let (key, value) = property.contents()?;
+
+            command = command.arg(key.as_ref(), value)?;
+        }
+
+        self.send_command_no_response(command).await
+    }
+
+    pub async fn server_info(&self) -> Result<ServerInfo, QueryError> {
+        let command = Command::new("serverinfo");
+
+        self.send_command(command).await
     }
 
     pub async fn server_notify_register(&self, event: EventType) -> Result<(), QueryError> {

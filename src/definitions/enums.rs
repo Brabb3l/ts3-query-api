@@ -68,3 +68,13 @@ ts_enum! {
         READ = "read",
     }
 }
+
+ts_enum! {
+    ServerStatus<str> {
+        Online = "online",
+        VirtualOnline = "virtual online",
+        Offline = "offline",
+        BootingUp = "booting up",
+        ShuttingDown = "shutting down",
+    }
+}

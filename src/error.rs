@@ -31,6 +31,8 @@ pub enum ParseError {
     InvalidSeparator(Separator),
     #[error("Missing {0}")]
     MissingKey(String),
+    #[error("Invalid key: {0}")]
+    ValueParseError(String, Box<ParseError>),
     #[error("Missing value for {0}")]
     MissingValue(String),
     #[error("No scope")]

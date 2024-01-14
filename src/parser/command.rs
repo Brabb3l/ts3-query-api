@@ -173,7 +173,7 @@ macro_rules! impl_simple_encode {
     };
 }
 
-impl_simple_encode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+impl_simple_encode!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128, f32, f64);
 
 pub struct CommandListBuilder<'a> {
     buf: &'a mut String,

@@ -1,6 +1,6 @@
 use crate::error::ParseError;
 use crate::parser::escape::unescape;
-use log::{log_enabled, warn};
+use log::{log_enabled, trace, warn};
 use std::borrow::Cow;
 
 pub struct Decoder<'a> {
@@ -70,7 +70,7 @@ impl<'a> Decoder<'a> {
         if let Some(missing) = self.entries.pop() {
             if log_enabled!(log::Level::Debug) {
                 for pair in missing {
-                    warn!("Missing key: '{}'", pair.key);
+                    warn!("Missing key: '{}' = {}", pair.key, pair.value.unwrap_or_else(|| String::from("<missing>")));
                 }
             }
         }
@@ -85,10 +85,12 @@ impl<'a> Decoder<'a> {
         T: DecodeValue,
     {
         match self.advance_internal(key) {
-            Ok(Some(value)) => T::decode(key, value).map(Some),
+            Ok(Some(value)) => T::decode(key, value)
+                .map_err(|e| ParseError::ValueParseError(key.to_string(), Box::new(e)))
+                .map(Some),
             Ok(None) => Ok(None),
             Err(ParseError::Eof) => Err(ParseError::MissingKey(key.to_string())),
-            Err(e) => Err(e),
+            Err(e) => Err(ParseError::ValueParseError(key.to_string(), Box::new(e))),
         }
     }
 
@@ -97,9 +99,11 @@ impl<'a> Decoder<'a> {
         T: DecodeValue,
     {
         match self.advance_internal(key) {
-            Ok(Some(value)) => T::decode(key, value).map(Some),
+            Ok(Some(value)) => T::decode(key, value)
+                .map_err(|e| ParseError::ValueParseError(key.to_string(), Box::new(e)))
+                .map(Some),
             Ok(None) | Err(ParseError::Eof) => Ok(None),
-            Err(e) => Err(e),
+            Err(e) => Err(ParseError::ValueParseError(key.to_string(), Box::new(e))),
         }
     }
 
@@ -215,9 +219,12 @@ impl<'a> Decoder<'a> {
     }
 
     fn advance_internal(&mut self, key: &'a str) -> Result<Option<String>, ParseError> {
+        trace!("searching for key: '{}'", key);
+
         let scope = self.entries.last_mut().ok_or(ParseError::NoScope)?;
 
         if let Some(i) = scope.iter().position(|k| k.key == key) {
+            trace!("found key: {:?}", scope[i].key);
             return Ok(scope.remove(i).value);
         }
 
@@ -227,6 +234,12 @@ impl<'a> Decoder<'a> {
 
         loop {
             let pair = self.parse_pair()?;
+
+            trace!("parsed pair: {:?}", pair.key);
+
+            if pair.key == key {
+                trace!("found key: {:?}", pair.key);
+            }
 
             if pair.key == key {
                 return Ok(pair.value);
@@ -244,10 +257,17 @@ impl<'a> Decoder<'a> {
             }
         }
     }
+
+    fn advance_missing(&mut self) {
+        while self.advance_internal(".").is_ok() {
+            // Ignore
+        }
+    }
 }
 
 impl Drop for Decoder<'_> {
     fn drop(&mut self) {
+        self.advance_missing();
         self.pop_scope()
     }
 }

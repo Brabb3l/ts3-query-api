@@ -1,10 +1,13 @@
+use crate::definitions::{ChannelInfo, Codec, CodecEncryptionMode, HostBannerMode, HostMessageMode, ServerInfo, ServerStatus};
 use crate::macros::properties;
 use crate::parser::Encode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PropertyType {
     Str(String),
     Int(i32),
+    Int64(i64),
+    Float(f32),
     Bool(bool),
 }
 
@@ -13,6 +16,8 @@ impl Encode for PropertyType {
         match self {
             PropertyType::Str(val) => val.encode(buf),
             PropertyType::Int(val) => val.encode(buf),
+            PropertyType::Int64(val) => val.encode(buf),
+            PropertyType::Float(val) => val.encode(buf),
             PropertyType::Bool(val) => val.encode(buf),
         }
     }
@@ -56,99 +61,71 @@ properties! {
     }
 }
 
-#[cfg(feature = "serde")]
-use serde::ser::SerializeStruct;
-use crate::definitions::{ChannelInfo, Codec};
+properties! {
+    ServerProperty {
+        Port: i32 = "virtualserver_port",
 
-#[cfg(feature = "serde")]
-impl serde::Serialize for ChannelProperty {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("Permission", 2)?;
-        let (id, value) = self.contents().map_err(serde::ser::Error::custom)?;
+        MinClientVersion: str = "virtualserver_min_client_version",
+        MinAndroidVersion: str = "virtualserver_min_android_version",
+        MinIosVersion: str = "virtualserver_min_ios_version",
 
-        state.serialize_field("id", id.as_ref())?;
+        Name: str = "virtualserver_name",
+        NamePhonetic: str = "virtualserver_name_phonetic",
+        WelcomeMessage: str = "virtualserver_welcome_message",
+        IconId: i32 = "virtualserver_icon_id",
 
-        let value = match value {
-            PropertyType::Str(val) => val,
-            PropertyType::Int(val) => val.to_string(),
-            PropertyType::Bool(val) => val.to_string(),
-        };
+        Status: ServerStatus = "virtualserver_status",
+        AutoStart: bool = "virtualserver_autostart",
+        WeblistEnabled: bool = "virtualserver_weblist_enabled",
 
-        state.serialize_field("value", &value)?;
-        state.end()
-    }
-}
+        Password: str = "virtualserver_password",
 
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for ChannelProperty {
-    fn deserialize<D: serde::Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<ChannelProperty, D::Error> {
-        #[derive(serde::Deserialize)]
-        #[serde(field_identifier, rename_all = "lowercase")]
-        enum Field {
-            Id,
-            Value,
-        }
+        MaxClients: i32 = "virtualserver_maxclients",
+        ReservedSlots: i32 = "virtualserver_reserved_slots",
 
-        struct ChannelPropertyVisitor;
+        NeededIdentitySecurityLevel: i32 = "virtualserver_needed_identity_security_level",
+        CodecEncryptionMode: CodecEncryptionMode = "virtualserver_codec_encryption_mode",
 
-        impl<'de> serde::de::Visitor<'de> for ChannelPropertyVisitor {
-            type Value = ChannelProperty;
+        DefaultServerGroup: i32 = "virtualserver_default_server_group",
+        DefaultChannelGroup: i32 = "virtualserver_default_channel_group",
+        DefaultChannelAdminGroup: i32 = "virtualserver_default_channel_admin_group",
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct ChannelProperty")
-            }
+        HostMessage: str = "virtualserver_hostmessage",
+        HostMessageMode: HostMessageMode = "virtualserver_hostmessage_mode",
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                let id = seq.next_element()?.ok_or_else(|| {
-                    serde::de::Error::invalid_length(0, &"struct PermissionValue with 2 elements")
-                })?;
-                let value = seq.next_element()?.ok_or_else(|| {
-                    serde::de::Error::invalid_length(1, &"struct PermissionValue with 2 elements")
-                })?;
+        HostBannerMode: HostBannerMode = "virtualserver_hostbanner_mode",
+        HostBannerUrl: str = "virtualserver_hostbanner_gfx_url",
+        HostBannerGfxUrl: str = "virtualserver_hostbanner_url",
+        HostBannerGfxInterval: i32 = "virtualserver_hostbanner_gfx_interval",
 
-                ChannelProperty::parse(id, value, true).map_err(serde::de::Error::custom)
-            }
+        HostButtonTooltip: str = "virtualserver_hostbutton_tooltip",
+        HostButtonGfxUrl: str = "virtualserver_hostbutton_gfx_url",
+        HostButtonUrl: str = "virtualserver_hostbutton_url",
 
-            fn visit_map<V: serde::de::MapAccess<'de>>(
-                self,
-                mut map: V,
-            ) -> Result<Self::Value, V::Error> {
-                let mut id: Option<String> = None;
-                let mut value: Option<String> = None;
+        ComplainAutoBanCount: i32 = "virtualserver_complain_autoban_count",
+        ComplainAutoBanTime: i32 = "virtualserver_complain_autoban_time",
+        ComplainRemoveTime: i32 = "virtualserver_complain_remove_time",
 
-                while let Some(key) = map.next_key()? {
-                    match key {
-                        Field::Id => {
-                            if id.is_some() {
-                                return Err(serde::de::Error::duplicate_field("id"));
-                            }
+        MinClientsInChannelBeforeForcedSilence: i32 = "virtualserver_min_clients_in_channel_before_forced_silence",
+        PrioritySpeakerDimmModificator: f32 = "virtualserver_priority_speaker_dimm_modificator",
 
-                            id = Some(map.next_value()?);
-                        }
-                        Field::Value => {
-                            if value.is_some() {
-                                return Err(serde::de::Error::duplicate_field("value"));
-                            }
+        AntiFloodPointsTickReduce: i32 = "virtualserver_antiflood_points_tick_reduce",
+        AntiFloodPointsNeededCommandBlock: i32 = "virtualserver_antiflood_points_needed_command_block",
+        AntiFloodPointsNeededPluginBlock: i32 = "virtualserver_antiflood_points_needed_plugin_block",
+        AntiFloodPointsNeededIpBlock: i32 = "virtualserver_antiflood_points_needed_ip_block",
 
-                            value = Some(map.next_value()?);
-                        }
-                    }
-                }
+        LogClient: bool = "virtualserver_log_client",
+        LogQuery: bool = "virtualserver_log_query",
+        LogChannel: bool = "virtualserver_log_channel",
+        LogPermissions: bool = "virtualserver_log_permissions",
+        LogServer: bool = "virtualserver_log_server",
+        LogFileTransfer: bool = "virtualserver_log_filetransfer",
 
-                let id = id.ok_or_else(|| serde::de::Error::missing_field("id"))?;
-                let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
+        DownloadQuota: i64 = "virtualserver_download_quota",
+        UploadQuota: i64 = "virtualserver_upload_quota",
 
-                ChannelProperty::parse(&id, &value, true).map_err(serde::de::Error::custom)
-            }
-        }
-
-        const FIELDS: &[&str] = &["id", "value"];
-        deserializer.deserialize_struct("ChannelProperty", FIELDS, ChannelPropertyVisitor)
+        MaxDownloadTotalBandwidth: i64 = "virtualserver_max_download_total_bandwidth",
+        MaxUploadTotalBandwidth: i64 = "virtualserver_max_upload_total_bandwidth",
     }
 }
 
@@ -220,6 +197,127 @@ impl ChannelInfo {
     }
 
     pub fn to_properties_vec(self) -> Vec<ChannelProperty> {
+        self.into_properties_vec(Vec::new())
+    }
+}
+
+impl ServerInfo {
+    pub fn into_properties_vec(self, mut dst: Vec<ServerProperty>) -> Vec<ServerProperty> {
+        dst.push(ServerProperty::Port(self.port));
+
+        dst.push(ServerProperty::MinClientVersion(self.min_client_version));
+        dst.push(ServerProperty::MinAndroidVersion(self.min_android_version));
+        dst.push(ServerProperty::MinIosVersion(self.min_ios_version));
+
+        dst.push(ServerProperty::Name(self.name));
+
+        if let Some(name_phonetic) = self.name_phonetic {
+            dst.push(ServerProperty::NamePhonetic(name_phonetic));
+        }
+
+        if let Some(welcome_message) = self.welcome_message {
+            dst.push(ServerProperty::WelcomeMessage(welcome_message));
+        }
+
+        dst.push(ServerProperty::IconId(self.icon_id));
+
+        if self.icon_id != 0 {
+            dst.push(ServerProperty::IconId(self.icon_id));
+        }
+
+        dst.push(ServerProperty::Status(self.status));
+        dst.push(ServerProperty::AutoStart(self.auto_start));
+        dst.push(ServerProperty::WeblistEnabled(self.weblist_enabled));
+
+        if let Some(password) = self.password {
+            dst.push(ServerProperty::Password(password));
+        }
+
+        dst.push(ServerProperty::MaxClients(self.max_clients));
+        dst.push(ServerProperty::ReservedSlots(self.reserved_slots));
+
+        dst.push(ServerProperty::NeededIdentitySecurityLevel(self.needed_identity_security_level));
+        dst.push(ServerProperty::CodecEncryptionMode(self.codec_encryption_mode));
+
+        dst.push(ServerProperty::DefaultServerGroup(self.default_server_group));
+        dst.push(ServerProperty::DefaultChannelGroup(self.default_channel_group));
+        dst.push(ServerProperty::DefaultChannelAdminGroup(self.default_channel_admin_group));
+
+        if let Some(host_message) = self.host_message {
+            dst.push(ServerProperty::HostMessage(host_message));
+        }
+
+        dst.push(ServerProperty::HostMessageMode(self.host_message_mode));
+
+        dst.push(ServerProperty::HostBannerMode(self.host_banner_mode));
+
+        if let Some(host_banner_url) = self.host_banner_url {
+            dst.push(ServerProperty::HostBannerUrl(host_banner_url));
+        }
+
+        if let Some(host_banner_gfx_url) = self.host_banner_gfx_url {
+            dst.push(ServerProperty::HostBannerGfxUrl(host_banner_gfx_url));
+        }
+
+        dst.push(ServerProperty::HostBannerGfxInterval(self.host_banner_gfx_interval));
+
+        if let Some(host_button_tooltip) = self.host_button_tooltip {
+            dst.push(ServerProperty::HostButtonTooltip(host_button_tooltip));
+        }
+
+        if let Some(host_button_url) = self.host_button_url {
+            dst.push(ServerProperty::HostButtonUrl(host_button_url));
+        }
+
+        if let Some(host_button_gfx_url) = self.host_button_gfx_url {
+            dst.push(ServerProperty::HostButtonGfxUrl(host_button_gfx_url));
+        }
+
+        dst.push(ServerProperty::ComplainAutoBanCount(self.complain_autoban_count));
+        dst.push(ServerProperty::ComplainAutoBanTime(self.complain_autoban_time));
+        dst.push(ServerProperty::ComplainRemoveTime(self.complain_remove_time));
+
+        dst.push(ServerProperty::MinClientsInChannelBeforeForcedSilence(
+            self.min_clients_in_channel_before_forced_silence,
+        ));
+        dst.push(ServerProperty::PrioritySpeakerDimmModificator(
+            self.priority_speaker_dimm_modificator,
+        ));
+
+        dst.push(ServerProperty::AntiFloodPointsTickReduce(
+            self.antiflood_points_tick_reduce,
+        ));
+        dst.push(ServerProperty::AntiFloodPointsNeededCommandBlock(
+            self.antiflood_points_needed_command_block,
+        ));
+        dst.push(ServerProperty::AntiFloodPointsNeededPluginBlock(
+            self.antiflood_points_needed_plugin_block,
+        ));
+        dst.push(ServerProperty::AntiFloodPointsNeededIpBlock(
+            self.antiflood_points_needed_ip_block,
+        ));
+
+        dst.push(ServerProperty::LogClient(self.log_client));
+        dst.push(ServerProperty::LogQuery(self.log_query));
+        dst.push(ServerProperty::LogChannel(self.log_channel));
+        dst.push(ServerProperty::LogPermissions(self.log_permissions));
+        dst.push(ServerProperty::LogServer(self.log_server));
+        dst.push(ServerProperty::LogFileTransfer(self.log_file_transfer));
+
+        dst.push(ServerProperty::DownloadQuota(self.download_quota));
+        dst.push(ServerProperty::UploadQuota(self.upload_quota));
+
+        dst.push(ServerProperty::MaxDownloadTotalBandwidth(
+            self.max_download_total_bandwidth,
+        ));
+        dst.push(ServerProperty::MaxUploadTotalBandwidth(
+            self.max_upload_total_bandwidth,
+        ));
+
+        dst
+    }
+
+    pub fn to_properties_vec(self) -> Vec<ServerProperty> {
         self.into_properties_vec(Vec::new())
     }
 }

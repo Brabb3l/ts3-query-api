@@ -380,6 +380,153 @@ ts_response! {
     }
 }
 
+// permissionlist
+
+ts_response! {
+    PermissionListEntry {
+        id("permid"): i32,
+        name("permname"): String,
+        description("permdesc"): Option<String>,
+    }
+}
+
+// serverinfo
+
+ts_response! {
+    ServerInfo {
+        id("virtualserver_id"): i32,
+        unique_identifier("virtualserver_unique_identifier"): String,
+        port("virtualserver_port"): i32,
+
+        ip("virtualserver_ip"): String,
+        version("virtualserver_version"): String,
+        platform("virtualserver_platform"): String,
+
+        min_client_version("virtualserver_min_client_version"): String,
+        min_android_version("virtualserver_min_android_version"): String,
+        min_ios_version("virtualserver_min_ios_version"): String,
+
+        name("virtualserver_name"): String,
+        name_phonetic("virtualserver_name_phonetic"): Option<String>,
+        nickname("virtualserver_nickname"): Option<String>,
+        welcome_message("virtualserver_welcomemessage"): Option<String>,
+        icon_id("virtualserver_icon_id"): i32,
+        machine_id("virtualserver_machine_id"): Option<String>,
+
+        status("virtualserver_status"): ServerStatus,
+        auto_start("virtualserver_autostart"): bool,
+        weblist_enabled("virtualserver_weblist_enabled"): bool,
+        ask_for_privilege_key("virtualserver_ask_for_privilegekey"): bool,
+        channel_temp_delete_delay_default("virtualserver_channel_temp_delete_delay_default"): i32,
+        antiflood_points_needed_plugin_block("virtualserver_antiflood_points_needed_plugin_block"): i32,
+        capability_extensions("virtualserver_capability_extensions"): Option<String>,
+
+        password("virtualserver_password"): Option<String>,
+        flag_password("virtualserver_flag_password"): bool,
+
+        max_clients("virtualserver_maxclients"): i32,
+        clients_online("virtualserver_clientsonline"): i32,
+        channels_online("virtualserver_channelsonline"): i32,
+        reserved_slots("virtualserver_reserved_slots"): i32,
+
+        created("virtualserver_created"): u64,
+        uptime("virtualserver_uptime"): u64,
+
+        needed_identity_security_level("virtualserver_needed_identity_security_level"): i32,
+        codec_encryption_mode("virtualserver_codec_encryption_mode"): CodecEncryptionMode,
+
+        filebase("virtualserver_filebase"): Option<String>,
+        file_storage_class("virtualserver_file_storage_class"): Option<String>,
+
+        default_server_group("virtualserver_default_server_group"): i32,
+        default_channel_group("virtualserver_default_channel_group"): i32,
+        default_channel_admin_group("virtualserver_default_channel_admin_group"): i32,
+
+        host_message("virtualserver_hostmessage"): Option<String>,
+        host_message_mode("virtualserver_hostmessage_mode"): HostMessageMode,
+
+        host_banner_mode("virtualserver_hostbanner_mode"): HostBannerMode,
+        host_banner_url("virtualserver_hostbanner_url"): Option<String>,
+        host_banner_gfx_url("virtualserver_hostbanner_gfx_url"): Option<String>,
+        host_banner_gfx_interval("virtualserver_hostbanner_gfx_interval"): i32,
+
+        host_button_tooltip("virtualserver_hostbutton_tooltip"): Option<String>,
+        host_button_url("virtualserver_hostbutton_url"): Option<String>,
+        host_button_gfx_url("virtualserver_hostbutton_gfx_url"): Option<String>,
+
+        complain_autoban_count("virtualserver_complain_autoban_count"): i32,
+        complain_autoban_time("virtualserver_complain_autoban_time"): i32,
+        complain_remove_time("virtualserver_complain_remove_time"): i32,
+
+        min_clients_in_channel_before_forced_silence("virtualserver_min_clients_in_channel_before_forced_silence"): i32,
+        priority_speaker_dimm_modificator("virtualserver_priority_speaker_dimm_modificator"): f32,
+
+        antiflood_points_tick_reduce("virtualserver_antiflood_points_tick_reduce"): i32,
+        antiflood_points_needed_command_block("virtualserver_antiflood_points_needed_command_block"): i32,
+        antiflood_points_needed_ip_block("virtualserver_antiflood_points_needed_ip_block"): i32,
+
+        log_client("virtualserver_log_client"): bool,
+        log_query("virtualserver_log_query"): bool,
+        log_channel("virtualserver_log_channel"): bool,
+        log_permissions("virtualserver_log_permissions"): bool,
+        log_server("virtualserver_log_server"): bool,
+        log_file_transfer("virtualserver_log_filetransfer"): bool,
+
+        client_connections("virtualserver_client_connections"): i32,
+        query_client_connections("virtualserver_query_client_connections"): i32,
+
+        query_clients_online("virtualserver_queryclientsonline"): i32,
+
+        ping("virtualserver_ping"): i32 = 0,
+        total_ping("virtualserver_total_ping"): f32,
+
+        download_quota("virtualserver_download_quota"): i64,
+        upload_quota("virtualserver_upload_quota"): i64,
+
+        max_download_total_bandwidth("virtualserver_max_download_total_bandwidth"): i64,
+        max_upload_total_bandwidth("virtualserver_max_upload_total_bandwidth"): i64,
+
+        month_bytes_downloaded("virtualserver_month_bytes_downloaded"): i64,
+        month_bytes_uploaded("virtualserver_month_bytes_uploaded"): i64,
+        total_bytes_downloaded("virtualserver_total_bytes_downloaded"): i64,
+        total_bytes_uploaded("virtualserver_total_bytes_uploaded"): i64,
+
+        total_packet_loss_speech("virtualserver_total_packetloss_speech"): f32,
+        total_packet_loss_keepalive("virtualserver_total_packetloss_keepalive"): f32,
+        total_packet_loss_control("virtualserver_total_packetloss_control"): f32,
+        total_packet_loss_total("virtualserver_total_packetloss_total"): f32,
+
+        file_transfer_bandwidth_sent("connection_filetransfer_bandwidth_sent"): i64 = 0,
+        file_transfer_bandwidth_received("connection_filetransfer_bandwidth_received"): i64 = 0,
+        file_transfer_bytes_sent_total("connection_filetransfer_bytes_sent_total"): i64 = 0,
+        file_transfer_bytes_received_total("connection_filetransfer_bytes_received_total"): i64 = 0,
+
+        packets_sent_speech("connection_packets_sent_speech"): i64,
+        packets_received_speech("connection_packets_received_speech"): i64,
+        packets_sent_keepalive("connection_packets_sent_keepalive"): i64,
+        packets_received_keepalive("connection_packets_received_keepalive"): i64,
+        packets_sent_control("connection_packets_sent_control"): i64,
+        packets_received_control("connection_packets_received_control"): i64,
+        packets_sent_total("connection_packets_sent_total"): i64,
+        packets_received_total("connection_packets_received_total"): i64,
+
+        bytes_sent_speech("connection_bytes_sent_speech"): i64,
+        bytes_received_speech("connection_bytes_received_speech"): i64,
+        bytes_sent_keepalive("connection_bytes_sent_keepalive"): i64,
+        bytes_received_keepalive("connection_bytes_received_keepalive"): i64,
+        bytes_sent_control("connection_bytes_sent_control"): i64,
+        bytes_received_control("connection_bytes_received_control"): i64,
+        bytes_sent_total("connection_bytes_sent_total"): i64,
+        bytes_received_total("connection_bytes_received_total"): i64,
+
+        bandwidth_sent_last_second_total("connection_bandwidth_sent_last_second_total"): i64,
+        bandwidth_sent_last_minute_total("connection_bandwidth_sent_last_minute_total"): i64,
+
+        bandwidth_received_last_second_total("connection_bandwidth_received_last_second_total"): i64,
+        bandwidth_received_last_minute_total("connection_bandwidth_received_last_minute_total"): i64,
+    }
+}
+
 // custom decoding
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

@@ -5,8 +5,14 @@ macro_rules! property {
     ($value_name:ident, bool) => {
         PropertyType::Bool(*$value_name)
     };
+    ($value_name:ident, f32) => {
+        PropertyType::Float(*$value_name)
+    };
     ($value_name:ident, i32) => {
         PropertyType::Int(*$value_name)
+    };
+    ($value_name:ident, i64) => {
+        PropertyType::Int64(*$value_name)
     };
     ($value_name:ident, $ty:tt) => {
         $value_name.into_property()?
@@ -14,18 +20,12 @@ macro_rules! property {
 }
 
 macro_rules! property_type {
-    (str) => {
-        String
-    };
-    (bool) => {
-        bool
-    };
-    (i32) => {
-        i32
-    };
-    ($ty:tt) => {
-        $ty
-    };
+    (str) => { String };
+    (bool) => { bool };
+    (f32) => { f32 };
+    (i32) => { i32 };
+    (i64) => { i64 };
+    ($ty:tt) => { $ty };
 }
 
 macro_rules! property_parse {
@@ -40,15 +40,11 @@ macro_rules! property_parse {
             }
         }
     };
-    ($value:expr, i32) => {
-        $value.parse()?
-    };
-    ($value:expr, str) => {
-        $value.to_string()
-    };
-    ($value:expr, $ty:tt) => {
-        $ty::from($value)
-    };
+    ($value:expr, f32) => { $value.parse()? };
+    ($value:expr, i32) => { $value.parse()? };
+    ($value:expr, i64) => { $value.parse()? };
+    ($value:expr, str) => { $value.to_string() };
+    ($value:expr, $ty:tt) => { $ty::from($value) };
 }
 
 macro_rules! properties {
@@ -56,7 +52,7 @@ macro_rules! properties {
         $($name:ident: $ty:tt = $value:expr),* $(,)?
     }) => {
         #[allow(dead_code)]
-        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[derive(Debug, Clone, PartialEq)]
         pub enum $type {
             $($name($crate::macros::property_type!($ty))),*,
             Custom(String, PropertyType),
@@ -89,6 +85,100 @@ macro_rules! properties {
                 };
 
                 Ok((name, value))
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        impl serde::Serialize for $type {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                let mut state = serializer.serialize_struct(stringify!($type), 2)?;
+                let (id, value) = self.contents().map_err(serde::ser::Error::custom)?;
+
+                serde::ser::SerializeStruct::serialize_field(&mut state, "id", id.as_ref())?;
+
+                let value = match value {
+                    PropertyType::Str(val) => val,
+                    PropertyType::Float(val) => val.to_string(),
+                    PropertyType::Int(val) => val.to_string(),
+                    PropertyType::Int64(val) => val.to_string(),
+                    PropertyType::Bool(val) => val.to_string(),
+                };
+
+                serde::ser::SerializeStruct::serialize_field(&mut state, "value", &value)?;
+                serde::ser::SerializeStruct::end(state)
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        impl<'de> serde::Deserialize<'de> for $type {
+            fn deserialize<D: serde::Deserializer<'de>>(
+                deserializer: D,
+            ) -> Result<$type, D::Error> {
+                #[derive(serde::Deserialize)]
+                #[serde(field_identifier, rename_all = "lowercase")]
+                enum Field {
+                    Id,
+                    Value,
+                }
+
+                struct PropertyVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for PropertyVisitor {
+                    type Value = $type;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        formatter.write_str(stringify!($type))
+                    }
+
+                    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: serde::de::SeqAccess<'de>,
+                    {
+                        let id = seq.next_element()?.ok_or_else(|| {
+                            serde::de::Error::invalid_length(0, &"struct PropertyType with 2 elements")
+                        })?;
+                        let value = seq.next_element()?.ok_or_else(|| {
+                            serde::de::Error::invalid_length(1, &"struct PropertyType with 2 elements")
+                        })?;
+
+                        $type::parse(id, value, true).map_err(serde::de::Error::custom)
+                    }
+
+                    fn visit_map<V: serde::de::MapAccess<'de>>(
+                        self,
+                        mut map: V,
+                    ) -> Result<Self::Value, V::Error> {
+                        let mut id: Option<String> = None;
+                        let mut value: Option<String> = None;
+
+                        while let Some(key) = map.next_key()? {
+                            match key {
+                                Field::Id => {
+                                    if id.is_some() {
+                                        return Err(serde::de::Error::duplicate_field("id"));
+                                    }
+
+                                    id = Some(map.next_value()?);
+                                }
+                                Field::Value => {
+                                    if value.is_some() {
+                                        return Err(serde::de::Error::duplicate_field("value"));
+                                    }
+
+                                    value = Some(map.next_value()?);
+                                }
+                            }
+                        }
+
+                        let id = id.ok_or_else(|| serde::de::Error::missing_field("id"))?;
+                        let value = value.ok_or_else(|| serde::de::Error::missing_field("value"))?;
+
+                        $type::parse(&id, &value, true).map_err(serde::de::Error::custom)
+                    }
+                }
+
+                const FIELDS: &[&str] = &["id", "value"];
+                deserializer.deserialize_struct(stringify!($type), FIELDS, PropertyVisitor)
             }
         }
     }
