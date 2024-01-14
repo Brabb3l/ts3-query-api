@@ -6,7 +6,8 @@ use crate::parser::Encode;
 pub enum PropertyType {
     Str(String),
     Int(i32),
-    Int64(i64),
+    I64(i64),
+    U64(u64),
     Float(f32),
     Bool(bool),
 }
@@ -16,7 +17,8 @@ impl Encode for PropertyType {
         match self {
             PropertyType::Str(val) => val.encode(buf),
             PropertyType::Int(val) => val.encode(buf),
-            PropertyType::Int64(val) => val.encode(buf),
+            PropertyType::I64(val) => val.encode(buf),
+            PropertyType::U64(val) => val.encode(buf),
             PropertyType::Float(val) => val.encode(buf),
             PropertyType::Bool(val) => val.encode(buf),
         }
@@ -121,11 +123,11 @@ properties! {
         LogServer: bool = "virtualserver_log_server",
         LogFileTransfer: bool = "virtualserver_log_filetransfer",
 
-        DownloadQuota: i64 = "virtualserver_download_quota",
-        UploadQuota: i64 = "virtualserver_upload_quota",
+        DownloadQuota: u64 = "virtualserver_download_quota",
+        UploadQuota: u64 = "virtualserver_upload_quota",
 
-        MaxDownloadTotalBandwidth: i64 = "virtualserver_max_download_total_bandwidth",
-        MaxUploadTotalBandwidth: i64 = "virtualserver_max_upload_total_bandwidth",
+        MaxDownloadTotalBandwidth: u64 = "virtualserver_max_download_total_bandwidth",
+        MaxUploadTotalBandwidth: u64 = "virtualserver_max_upload_total_bandwidth",
     }
 }
 

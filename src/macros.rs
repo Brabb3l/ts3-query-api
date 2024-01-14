@@ -12,7 +12,10 @@ macro_rules! property {
         PropertyType::Int(*$value_name)
     };
     ($value_name:ident, i64) => {
-        PropertyType::Int64(*$value_name)
+        PropertyType::I64(*$value_name)
+    };
+    ($value_name:ident, u64) => {
+        PropertyType::U64(*$value_name)
     };
     ($value_name:ident, $ty:tt) => {
         $value_name.into_property()?
@@ -25,6 +28,7 @@ macro_rules! property_type {
     (f32) => { f32 };
     (i32) => { i32 };
     (i64) => { i64 };
+    (u64) => { u64 };
     ($ty:tt) => { $ty };
 }
 
@@ -43,6 +47,7 @@ macro_rules! property_parse {
     ($value:expr, f32) => { $value.parse()? };
     ($value:expr, i32) => { $value.parse()? };
     ($value:expr, i64) => { $value.parse()? };
+    ($value:expr, u64) => { $value.parse()? };
     ($value:expr, str) => { $value.to_string() };
     ($value:expr, $ty:tt) => { $ty::from($value) };
 }
@@ -100,7 +105,8 @@ macro_rules! properties {
                     PropertyType::Str(val) => val,
                     PropertyType::Float(val) => val.to_string(),
                     PropertyType::Int(val) => val.to_string(),
-                    PropertyType::Int64(val) => val.to_string(),
+                    PropertyType::I64(val) => val.to_string(),
+                    PropertyType::U64(val) => val.to_string(),
                     PropertyType::Bool(val) => val.to_string(),
                 };
 
