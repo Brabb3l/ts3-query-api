@@ -1,4 +1,4 @@
-use crate::definitions::{ChannelInfo, Codec, CodecEncryptionMode, HostBannerMode, HostMessageMode, ServerInfo, ServerStatus};
+use crate::definitions::{Badges, ChannelInfo, Codec, CodecEncryptionMode, HostBannerMode, HostMessageMode, ServerInfo, ServerStatus};
 use crate::macros::properties;
 use crate::parser::Encode;
 
@@ -128,6 +128,17 @@ properties! {
 
         MaxDownloadTotalBandwidth: u64 = "virtualserver_max_download_total_bandwidth",
         MaxUploadTotalBandwidth: u64 = "virtualserver_max_upload_total_bandwidth",
+    }
+}
+
+properties! {
+    ClientProperty {
+        Badges: Badges = "client_badges",
+        Description: str = "client_description",
+        IconId: i32 = "client_icon_id",
+        IsChannelCommander: bool = "client_is_channel_commander",
+        IsTalker: bool = "client_is_talker",
+        Nickname: str = "client_nickname"
     }
 }
 

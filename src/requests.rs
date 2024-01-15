@@ -60,7 +60,7 @@ use std::borrow::Cow;
 // [ ] clientpermlist
 // [ ] clientpoke
 // [ ] clientsetserverquerylogin
-// [ ] clientupdate
+// [X] clientupdate
 // [ ] complainadd
 // [ ] complaindel
 // [ ] complaindelall
@@ -531,6 +531,21 @@ impl QueryClient {
             .arg_list("clid", client_ids)?
             .arg_opt("cpw", password)?
             .arg("cid", channel_id)?;
+
+        self.send_command_no_response(command).await
+    }
+
+    pub async fn client_update(
+        &self,
+        properties: &[ClientProperty],
+    ) -> Result<(), QueryError> {
+        let mut command = Command::new("clientupdate");
+
+        for property in properties {
+            let (key, value) = property.contents()?;
+
+            command = command.arg(key.as_ref(), value)?;
+        }
 
         self.send_command_no_response(command).await
     }

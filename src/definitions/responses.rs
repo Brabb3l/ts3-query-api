@@ -76,7 +76,7 @@ ts_response! {
 
 ts_response! {
     WhoAmI {
-        virtualserver_status: String,
+        virtualserver_status: ServerStatus,
         virtualserver_id: i32,
         virtualserver_unique_identifier: String,
         virtualserver_port: i32,
@@ -567,5 +567,31 @@ impl DecodeValue for Badges {
         }
 
         Ok(Self { overwolf, badges })
+    }
+}
+
+impl Badges {
+    #[allow(clippy::wrong_self_convention)]
+    pub fn into_property(&self) -> Result<PropertyType, ParseError> {
+        let mut result = String::new();
+
+        if self.overwolf {
+            result.push_str("Overwolf=1");
+        }
+
+        if !self.badges.is_empty() {
+            if !result.is_empty() {
+                result.push(':');
+            }
+
+            result.push_str("badges=");
+            result.push_str(&self.badges.join(","));
+        }
+
+        Ok(PropertyType::Str(result))
+    }
+
+    pub fn from(property: &str) -> Self {
+        Self::decode("", property.to_string()).unwrap()
     }
 }
